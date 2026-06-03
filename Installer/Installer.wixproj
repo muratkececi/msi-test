@@ -3,6 +3,9 @@
   <PropertyGroup>
     <OutputName>MyAppSetup</OutputName>
     <OutputType>Package</OutputType>
+    <!-- 64-bit paket: ProgramFiles64Folder kullandığımız için komponentler de
+         64-bit olmalı (yoksa ICE80 hatası). -->
+    <InstallerPlatform>x64</InstallerPlatform>
   </PropertyGroup>
 
   <ItemGroup>
