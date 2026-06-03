@@ -1,0 +1,58 @@
+name: Build MSI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]      # v1.0.0 gibi bir tag push'lanınca Release de oluşur
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:   # Actions sekmesinden elle de tetikleyebilirsin
+
+permissions:
+  contents: write      # Release oluşturup MSI yükleyebilmek için gerekli
+
+jobs:
+  build:
+    # Microsoft tarafından host edilen ücretsiz Windows runner.
+    # Kendi makineni vermene gerek yok.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore (NuGet paketleri + WiX SDK)
+        run: |
+          dotnet restore MyApp\MyApp.csproj
+          dotnet restore UninstallGuard\UninstallGuard.csproj
+          dotnet restore Installer\Installer.wixproj
+
+      - name: Build WPF app
+        run: dotnet build MyApp\MyApp.csproj -c Release --no-restore
+
+      - name: Build custom action
+        run: dotnet build UninstallGuard\UninstallGuard.csproj -c Release --no-restore
+
+      - name: Build MSI installer
+        run: dotnet build Installer\Installer.wixproj -c Release --no-restore
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyAppSetup-msi
+          path: Installer\bin\Release\*.msi
+          if-no-files-found: error
+
+      # Sadece bir tag (v*) push'landığında çalışır.
+      # MSI'yi o tag'e ait bir GitHub Release'e ekler.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Installer\bin\Release\*.msi
+          generate_release_notes: true   # commit'lerden otomatik release notu üretir

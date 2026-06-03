@@ -1,0 +1,15 @@
+# .NET / build çıktıları
+bin/
+obj/
+*.user
+
+# WiX ara çıktıları
+*.wixobj
+*.wixpdb
+
+# IDE
+.vs/
+.idea/
+
+# Loglar (elle testten)
+*.log

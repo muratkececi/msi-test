@@ -1,0 +1,20 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+  <PropertyGroup>
+    <OutputName>MyAppSetup</OutputName>
+    <OutputType>Package</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WiX UI eklentisi (standart kurulum sihirbazı ekranları için) -->
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Uygulama çıktısının harvest edilmesi yerine elle referans veriyoruz.
+         Build sırası: MyApp -> UninstallGuard -> Installer -->
+    <ProjectReference Include="..\MyApp\MyApp.csproj" />
+    <ProjectReference Include="..\UninstallGuard\UninstallGuard.csproj" />
+  </ItemGroup>
+
+</Project>

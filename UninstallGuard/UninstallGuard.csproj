@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- DTF managed custom action'lar .NET Framework 4.7.2 hedefler.
+         WiX 5 bu projeyi MSI'a paketlenebilir bir CA .dll'e dönüştürür. -->
+    <TargetFramework>net472</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Custom action'ları MSI'a paketleyen WiX SDK paketi -->
+    <PackageReference Include="WixToolset.Dtf.CustomAction" Version="5.0.2" />
+  </ItemGroup>
+
+</Project>
