@@ -70,8 +70,9 @@
     </InstallExecuteSequence>
 
     <!-- ============ KURULUM ARAYÜZÜ ============ -->
+    <!-- InstallDirectory niteliği WIXUI_INSTALLDIR'i kendisi ayarlar;
+         ayrıca elle Property tanımlamak çakışmaya yol açar. -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
 
   </Package>
 </Wix>
