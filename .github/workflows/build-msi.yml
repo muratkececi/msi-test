@@ -32,8 +32,8 @@ jobs:
           dotnet restore UninstallGuard\UninstallGuard.csproj
           dotnet restore Installer\Installer.wixproj
 
-      - name: Build WPF app
-        run: dotnet build MyApp\MyApp.csproj -c Release --no-restore
+      - name: Publish WPF app (single-file, self-contained)
+        run: dotnet publish MyApp\MyApp.csproj -c Release --no-restore
 
       - name: Build custom action
         run: dotnet build UninstallGuard\UninstallGuard.csproj -c Release --no-restore

@@ -4,7 +4,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.1"
+           Version="1.0.2"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Scope="perMachine">
 
@@ -18,8 +18,10 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="MyApp">
         <Component Id="MyAppExe" Guid="*">
+          <!-- Single-file self-contained publish çıktısı: tek MyApp.exe.
+               $(var.MyApp.ProjectDir) = MyApp\ ; altındaki publish klasörü. -->
           <File Id="MyAppExe"
-                Source="$(var.MyApp.TargetPath)"
+                Source="$(var.MyApp.ProjectDir)bin\Release\net8.0-windows\win-x64\publish\MyApp.exe"
                 KeyPath="yes" />
         </Component>
       </Directory>

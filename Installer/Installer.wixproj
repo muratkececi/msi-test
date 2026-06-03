@@ -14,8 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Uygulama çıktısının harvest edilmesi yerine elle referans veriyoruz.
-         Build sırası: MyApp -> UninstallGuard -> Installer -->
+    <!-- $(var.MyApp.*) / $(var.UninstallGuard.*) preprocessor değişkenleri için
+         referans veriyoruz (build sırasını da kurar). MyApp.exe'yi build çıktısı
+         yerine publish klasöründen (single-file) alıyoruz; bu yüzden CI'da MyApp
+         ayrıca 'dotnet publish' edilir. -->
     <ProjectReference Include="..\MyApp\MyApp.csproj" />
     <ProjectReference Include="..\UninstallGuard\UninstallGuard.csproj" />
   </ItemGroup>
