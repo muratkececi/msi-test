@@ -29,11 +29,15 @@ jobs:
       - name: Restore (NuGet paketleri + WiX SDK)
         run: |
           dotnet restore MyApp\MyApp.csproj
+          dotnet restore MyApp.Service\MyApp.Service.csproj
           dotnet restore UninstallGuard\UninstallGuard.csproj
           dotnet restore Installer\Installer.wixproj
 
-      - name: Publish WPF app (single-file, self-contained)
+      - name: Publish WPF app (framework-dependent)
         run: dotnet publish MyApp\MyApp.csproj -c Release --no-restore
+
+      - name: Publish Agent service (framework-dependent)
+        run: dotnet publish MyApp.Service\MyApp.Service.csproj -c Release --no-restore
 
       - name: Build custom action
         run: dotnet build UninstallGuard\UninstallGuard.csproj -c Release --no-restore

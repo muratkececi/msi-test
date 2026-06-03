@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AssemblyName>MyApp</AssemblyName>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
 
     <!-- Framework-dependent yayın: runtime gömülmez, MSI küçük kalır (~1-2 MB).
          Hedef makinede .NET 8 Desktop Runtime kurulu olmalı; MSI bunu bir

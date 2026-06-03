@@ -9,23 +9,25 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- MyApp'in publish klasörü. Package.wxs içinde $(var.PublishDir) olarak
-         kullanılır. Sonunda '\' olmalı. MyApp framework-dependent publish'i
-         CI'da 'dotnet publish' ile bu yola üretir. -->
-    <DefineConstants>PublishDir=$(MSBuildProjectDirectory)\..\MyApp\bin\Release\net8.0-windows\win-x64\publish\</DefineConstants>
+    <!-- Publish klasörleri. Package.wxs içinde $(var.PublishDir) ve
+         $(var.ServicePublishDir) olarak kullanılır; sonunda '\' olmalı.
+         Framework-dependent publish'ler CI'da 'dotnet publish' ile üretilir. -->
+    <DefineConstants>PublishDir=$(MSBuildProjectDirectory)\..\MyApp\bin\Release\net8.0-windows\win-x64\publish\;ServicePublishDir=$(MSBuildProjectDirectory)\..\MyApp.Service\bin\Release\net8.0-windows\win-x64\publish\</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- WiX UI eklentisi (standart kurulum sihirbazı ekranları için) -->
+    <!-- WiX UI + Util (ServiceConfig recovery için) eklentileri -->
     <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- $(var.MyApp.*) / $(var.UninstallGuard.*) preprocessor değişkenleri için
-         referans veriyoruz (build sırasını da kurar). MyApp.exe'yi build çıktısı
-         yerine publish klasöründen (single-file) alıyoruz; bu yüzden CI'da MyApp
-         ayrıca 'dotnet publish' edilir. -->
+         referans veriyoruz (build sırasını da kurar). Exe'leri build çıktısı
+         yerine publish klasöründen alıyoruz; bu yüzden CI'da MyApp ve
+         MyApp.Service ayrıca 'dotnet publish' edilir. -->
     <ProjectReference Include="..\MyApp\MyApp.csproj" />
+    <ProjectReference Include="..\MyApp.Service\MyApp.Service.csproj" />
     <ProjectReference Include="..\UninstallGuard\UninstallGuard.csproj" />
   </ItemGroup>
 

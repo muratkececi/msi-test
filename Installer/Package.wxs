@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.3"
+           Version="1.0.4"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -35,6 +36,53 @@
         <Component Id="MyAppDepsJson" Guid="*">
           <File Source="$(var.PublishDir)MyApp.deps.json" KeyPath="yes" />
         </Component>
+
+        <!-- ===== ARKA PLAN AJAN SERVICE'İ ===== -->
+        <!-- Service exe + yan dosyaları, ServiceInstall + recovery ile. -->
+        <Component Id="AgentServiceExe" Guid="*">
+          <File Id="AgentServiceExe"
+                Source="$(var.ServicePublishDir)MyApp.Service.exe"
+                KeyPath="yes" />
+
+          <!-- Service'i SYSTEM altında, otomatik başlatma ile kur. -->
+          <ServiceInstall Id="AgentServiceInstall"
+                          Name="MyAppAgent"
+                          DisplayName="MyApp Agent"
+                          Description="MyApp arka plan ajanı (korumalı)."
+                          Type="ownProcess"
+                          Start="auto"
+                          ErrorControl="normal"
+                          Account="LocalSystem"
+                          Vital="yes">
+            <!-- Öldürülürse SCM yeniden başlatsın: ilk/ikinci/sonraki hatalarda
+                 5 sn sonra restart; sayaç 1 günde sıfırlanır. -->
+            <ServiceConfig OnInstall="yes" OnReinstall="yes"
+                           DelayedAutoStart="no" />
+            <util:ServiceConfig FirstFailureActionType="restart"
+                                SecondFailureActionType="restart"
+                                ThirdFailureActionType="restart"
+                                RestartServiceDelayInSeconds="5"
+                                ResetPeriodInDays="1" />
+          </ServiceInstall>
+
+          <!-- Kurulumda başlat, kaldırmada durdur ve sil. -->
+          <ServiceControl Id="AgentServiceControl"
+                          Name="MyAppAgent"
+                          Start="install"
+                          Stop="both"
+                          Remove="uninstall"
+                          Wait="yes" />
+        </Component>
+
+        <Component Id="AgentServiceDll" Guid="*">
+          <File Source="$(var.ServicePublishDir)MyApp.Service.dll" KeyPath="yes" />
+        </Component>
+        <Component Id="AgentServiceRuntimeConfig" Guid="*">
+          <File Source="$(var.ServicePublishDir)MyApp.Service.runtimeconfig.json" KeyPath="yes" />
+        </Component>
+        <Component Id="AgentServiceDepsJson" Guid="*">
+          <File Source="$(var.ServicePublishDir)MyApp.Service.deps.json" KeyPath="yes" />
+        </Component>
       </Directory>
     </StandardDirectory>
 
@@ -62,6 +110,10 @@
       <ComponentRef Id="MyAppDll" />
       <ComponentRef Id="MyAppRuntimeConfig" />
       <ComponentRef Id="MyAppDepsJson" />
+      <ComponentRef Id="AgentServiceExe" />
+      <ComponentRef Id="AgentServiceDll" />
+      <ComponentRef Id="AgentServiceRuntimeConfig" />
+      <ComponentRef Id="AgentServiceDepsJson" />
       <ComponentRef Id="AppShortcut" />
     </Feature>
 
