@@ -19,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
@@ -42,7 +42,7 @@ jobs:
         run: dotnet build Installer\Installer.wixproj -c Release --no-restore
 
       - name: Upload MSI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MyAppSetup-msi
           path: Installer\bin\Release\*.msi
@@ -52,7 +52,7 @@ jobs:
       # MSI'yi o tag'e ait bir GitHub Release'e ekler.
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: Installer\bin\Release\*.msi
           generate_release_notes: true   # commit'lerden otomatik release notu üretir
