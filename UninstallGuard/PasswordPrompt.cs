@@ -50,6 +50,16 @@ namespace UninstallGuard
                 form.AcceptButton = okButton;
                 form.CancelButton = cancelButton;
 
+                // Pencere kesinlikle en önde ve odakta açılsın
+                // (aksi halde MSI penceresinin arkasında kalıp gözden kaçabilir).
+                form.ShowInTaskbar = true;
+                form.Shown += (s, e) =>
+                {
+                    form.Activate();
+                    form.BringToFront();
+                    textBox.Focus();
+                };
+
                 DialogResult result = form.ShowDialog();
                 if (result != DialogResult.OK)
                     return null;
