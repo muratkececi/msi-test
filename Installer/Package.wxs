@@ -56,8 +56,6 @@
                           Vital="yes">
             <!-- Öldürülürse SCM yeniden başlatsın: ilk/ikinci/sonraki hatalarda
                  5 sn sonra restart; sayaç 1 günde sıfırlanır. -->
-            <ServiceConfig OnInstall="yes" OnReinstall="yes"
-                           DelayedAutoStart="no" />
             <util:ServiceConfig FirstFailureActionType="restart"
                                 SecondFailureActionType="restart"
                                 ThirdFailureActionType="restart"
