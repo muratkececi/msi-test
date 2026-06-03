@@ -6,6 +6,7 @@
            Manufacturer="iCredible"
            Version="1.0.3"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
+           Codepage="65001"
            Scope="perMachine">
 
     <!-- Eski sürümleri otomatik kaldırma desteği -->
