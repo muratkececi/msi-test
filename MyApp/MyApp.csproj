@@ -7,15 +7,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AssemblyName>MyApp</AssemblyName>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
 
-    <!-- Tek dosya, self-contained yayın: hedef makinede .NET kurulu olmasa da
-         çalışsın diye runtime gömülür. publish edildiğinde tek MyApp.exe çıkar. -->
+    <!-- Framework-dependent yayın: runtime gömülmez, MSI küçük kalır (~1-2 MB).
+         Hedef makinede .NET 8 Desktop Runtime kurulu olmalı; MSI bunu bir
+         LaunchCondition ile kontrol eder (yoksa kurulum durur ve kullanıcıyı
+         indirme bağlantısına yönlendirir). -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
 
 </Project>

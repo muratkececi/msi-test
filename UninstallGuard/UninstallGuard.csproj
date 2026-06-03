@@ -12,4 +12,11 @@
     <PackageReference Include="WixToolset.Dtf.CustomAction" Version="5.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- CustomAction.config'i MakeSfxCA'nın paketlenen CA.dll'e dahil etmesini
+         sağlar (CLR yükleme hatasını giderir). Dosya adı tam olarak
+         "CustomAction.config" olmalı. -->
+    <CustomActionContents Include="CustomAction.config" />
+  </ItemGroup>
+
 </Project>

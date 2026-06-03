@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -16,65 +17,95 @@ namespace UninstallGuard
 
         private const int MaxAttempts = 3;
 
+        private static Session _session;
+        private static string _logFile;
+
         /// <summary>
         /// Uninstall sırasında çalışır. Doğru parola girilmezse kurulumu iptal eder.
         /// </summary>
         [CustomAction]
         public static ActionResult CheckUninstallPassword(Session session)
         {
+            _session = session;
+
+            // Log dosyasını kurulum klasörüne (Program Files\MyApp) yazmaya hazırlan.
+            // INSTALLFOLDER kaldırma sırasında da çözümlenir.
             try
             {
-                session.Log("UninstallGuard: CheckUninstallPassword başladı.");
+                string installDir = session["INSTALLFOLDER"];
+                if (!string.IsNullOrEmpty(installDir) && Directory.Exists(installDir))
+                    _logFile = Path.Combine(installDir, "uninstall-guard.log");
+            }
+            catch { /* log dosyası ayarlanamazsa MSI log'una düşmeye devam ederiz */ }
+
+            try
+            {
+                Log("CheckUninstallPassword başladı.");
 
                 string uiLevel = session["UILevel"];
-                session.Log("UninstallGuard: UILevel = " + uiLevel);
+                Log("UILevel = " + uiLevel);
 
                 // Sessiz mod (/qn) tespiti: UI yoksa parola soramayız.
                 // INSTALLUILEVEL_NONE = 2. Güvenlik gereği UI yoksa engelliyoruz.
                 if (uiLevel == "2")
                 {
-                    session.Log("UninstallGuard: Sessiz mod algılandı. Uninstall engellendi.");
+                    Log("Sessiz mod algılandı. Uninstall engellendi.");
                     return ActionResult.Failure;
                 }
 
                 for (int attempt = 1; attempt <= MaxAttempts; attempt++)
                 {
-                    session.Log($"UninstallGuard: Parola ekranı gösteriliyor (deneme {attempt}).");
+                    Log($"Parola ekranı gösteriliyor (deneme {attempt}).");
 
                     // WinForms penceresini AYRI bir STA thread'inde aç.
                     // MSI custom action thread'i STA olmayabilir; bu, pencerenin
-                    // görünmeden çökmesini (senin gördüğün "açılıp kapanma") engeller.
+                    // görünmeden çökmesini engeller.
                     string entered = ShowPromptOnStaThread(attempt);
 
                     if (entered == null)
                     {
-                        session.Log("UninstallGuard: Kullanıcı parola ekranını iptal etti.");
+                        Log("Kullanıcı parola ekranını iptal etti.");
                         return ActionResult.Failure;
                     }
 
                     if (Verify(entered))
                     {
-                        session.Log("UninstallGuard: Parola doğru. Uninstall'a izin verildi.");
+                        Log("Parola doğru. Uninstall'a izin verildi.");
                         return ActionResult.Success;
                     }
 
-                    session.Log($"UninstallGuard: Yanlış parola denemesi {attempt}/{MaxAttempts}.");
+                    Log($"Yanlış parola denemesi {attempt}/{MaxAttempts}.");
                 }
 
                 ShowMessageOnStaThread(
                     "Çok fazla hatalı deneme. Kaldırma işlemi iptal edildi.",
                     "Yetkisiz İşlem");
 
-                session.Log("UninstallGuard: Maksimum deneme aşıldı. Uninstall engellendi.");
+                Log("Maksimum deneme aşıldı. Uninstall engellendi.");
                 return ActionResult.Failure;
             }
             catch (Exception ex)
             {
-                // Hiçbir exception sessizce yutulmasın; loga tam dökülsün.
-                session.Log("UninstallGuard: HATA -> " + ex);
+                Log("HATA -> " + ex);
                 // Güvenlik gereği: parola kontrolü çökerse kaldırmayı ENGELLE.
                 return ActionResult.Failure;
             }
+        }
+
+        // Hem MSI log'una hem de Program Files\MyApp\uninstall-guard.log'a yazar.
+        private static void Log(string message)
+        {
+            try { _session?.Log("UninstallGuard: " + message); } catch { }
+
+            if (string.IsNullOrEmpty(_logFile))
+                return;
+
+            try
+            {
+                string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}{Environment.NewLine}";
+                File.AppendAllText(_logFile, line, Encoding.UTF8);
+            }
+            catch { /* dosyaya yazılamazsa sessizce geç */ }
         }
 
         private static string ShowPromptOnStaThread(int attempt)

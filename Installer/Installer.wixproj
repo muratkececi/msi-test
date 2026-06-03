@@ -8,6 +8,13 @@
     <InstallerPlatform>x64</InstallerPlatform>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- MyApp'in publish klasörü. Package.wxs içinde $(var.PublishDir) olarak
+         kullanılır. Sonunda '\' olmalı. MyApp framework-dependent publish'i
+         CI'da 'dotnet publish' ile bu yola üretir. -->
+    <DefineConstants>PublishDir=$(MSBuildProjectDirectory)\..\MyApp\bin\Release\net8.0-windows\win-x64\publish\</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- WiX UI eklentisi (standart kurulum sihirbazı ekranları için) -->
     <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
