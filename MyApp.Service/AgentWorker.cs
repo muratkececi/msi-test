@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 
 namespace MyApp.Service;
 
@@ -6,7 +7,9 @@ namespace MyApp.Service;
 /// Arka plan ajanı. Sürekli çalışır; gerçek bir ajanda burada izleme/yedekleme
 /// gibi işler yapılır. Örnek olarak periyodik bir "heartbeat" log'u yazar.
 /// Başlangıçta kendi sürecini Task Manager'dan sonlandırmaya karşı korur.
+/// Yalnızca Windows service olarak çalışır (P/Invoke ile süreç koruması yapar).
 /// </summary>
+[SupportedOSPlatform("windows")]
 public class AgentWorker : BackgroundService
 {
     private readonly ILogger<AgentWorker> _logger;
