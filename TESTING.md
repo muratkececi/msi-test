@@ -21,7 +21,7 @@ Her ikisi de UI/sistem etkileşimi gerektirdiğinden otomatize edilmemiştir.
       ya da GitHub Actions çalışmasındaki **Artifacts > MyAppSetup-msi**
       (veya `v*` etiketli Release).
 - [ ] PowerShell'i **Yönetici olarak** aç (perMachine kurulum + service yönetici ister).
-- [ ] Hedef makinede **.NET 8 Desktop Runtime** kurulu olsun (yoksa kurulum
+- [ ] Hedef makinede **.NET 9 Desktop Runtime** kurulu olsun (yoksa kurulum
       bilinçli olarak durur — bkz. Bölüm 8).
 - [ ] (Önerilir) MSI loglarını görmek için her komuta `/l*v gunluk.log` ekle.
 
@@ -117,11 +117,11 @@ Denetim Masası üzerinden:
 
 ## 8. .NET Runtime kontrolü (LaunchCondition)
 
-Framework-dependent olduğumuz için hedef makinede .NET 8 Desktop Runtime yoksa
+Framework-dependent olduğumuz için hedef makinede .NET 9 Desktop Runtime yoksa
 kurulum bilinçli olarak durmalıdır.
 
 1. Runtime kurulu olmayan temiz bir makinede/VM'de kur.
-- [ ] Kurulum, .NET 8 Desktop Runtime indirme bağlantısını içeren bir mesajla
+- [ ] Kurulum, .NET 9 Desktop Runtime indirme bağlantısını içeren bir mesajla
       durduruluyor (dosya kopyalanmadan önce).
 
 ---
@@ -163,6 +163,6 @@ sırasında parola **sorulmamalıdır**.
 | Parola ekranı hiç çıkmıyor | Custom action MSI'a paketlenmemiş; `Package.wxs`'teki `Binary SourceFile` yolunu (`UninstallGuard.CA.dll`) ve build sırasını kontrol et. |
 | Uninstall'da uygulama açılıp kapanıyor, parola yok, "1603" | Custom action CLR'ı yükleyemiyor (`SFXCA ... 0x80131700`); `UninstallGuard/CustomAction.config` paketlenmiş mi bak. `/l*v` logundaki `SFXCA:` satırlarını incele. |
 | Doğru parola da reddediliyor | `CustomActions.cs`'teki hash, kullandığın paroladan üretilmemiş. Hash'i README'deki PowerShell ile yeniden üret. |
-| Service `RUNNING` olmuyor | .NET 8 runtime eksik olabilir; `agent.log` ve Olay Görüntüleyici'ye bak. |
+| Service `RUNNING` olmuyor | .NET 9 runtime eksik olabilir; `agent.log` ve Olay Görüntüleyici'ye bak. |
 | Task Manager yine de öldürebiliyor | SYSTEM yetkili/admin bir bağlamdan deniyorsun; bu beklenen sınırdır (caydırıcı koruma). SCM recovery (Bölüm 4) yine de geri getirmeli. |
-| Klasörde sadece `MyApp.dll` var | .NET 8 exe+dll+runtimeconfig+deps gerektirir; MSI'ın tüm publish çıktısını kurduğundan emin ol. |
+| Klasörde sadece `MyApp.dll` var | .NET 9 exe+dll+runtimeconfig+deps gerektirir; MSI'ın tüm publish çıktısını kurduğundan emin ol. |

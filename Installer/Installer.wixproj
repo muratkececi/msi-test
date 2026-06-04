@@ -12,7 +12,7 @@
     <!-- Publish klasörleri. Package.wxs içinde $(var.PublishDir) ve
          $(var.ServicePublishDir) olarak kullanılır; sonunda '\' olmalı.
          Framework-dependent publish'ler CI'da 'dotnet publish' ile üretilir. -->
-    <DefineConstants>PublishDir=$(MSBuildProjectDirectory)\..\MyApp\bin\Release\net8.0-windows\win-x64\publish\;ServicePublishDir=$(MSBuildProjectDirectory)\..\MyApp.Service\bin\Release\net8.0\win-x64\publish\</DefineConstants>
+    <DefineConstants>PublishDir=$(MSBuildProjectDirectory)\..\MyApp\bin\Release\net9.0-windows\win-x64\publish\;ServicePublishDir=$(MSBuildProjectDirectory)\..\MyApp.Service\bin\Release\net9.0\win-x64\publish\</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

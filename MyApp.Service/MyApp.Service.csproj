@@ -8,14 +8,14 @@
          süreç managed kod hiç çalışmadan çöker (service başlatılamaz). Düz net8.0
          yalnızca Microsoft.NETCore.App gerektirir; bu da her .NET 8 kurulumunda
          vardır. -->
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>MyApp.Service</AssemblyName>
     <OutputType>Exe</OutputType>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
 
-    <!-- Framework-dependent. Hedef makinede .NET 8 (NETCore.App) Runtime
+    <!-- Framework-dependent. Hedef makinede .NET 9 (NETCore.App) Runtime
          kuruluysa service çalışır. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
@@ -23,8 +23,8 @@
 
   <ItemGroup>
     <!-- Windows Service olarak barınma (SCM ile konuşma) -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.0" />
   </ItemGroup>
 
 </Project>

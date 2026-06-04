@@ -2,15 +2,15 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AssemblyName>MyApp</AssemblyName>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
 
     <!-- Framework-dependent yayın: runtime gömülmez, MSI küçük kalır (~1-2 MB).
-         Hedef makinede .NET 8 Desktop Runtime kurulu olmalı; MSI bunu bir
+         Hedef makinede .NET 9 Desktop Runtime kurulu olmalı; MSI bunu bir
          LaunchCondition ile kontrol eder (yoksa kurulum durur ve kullanıcıyı
          indirme bağlantısına yönlendirir). -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

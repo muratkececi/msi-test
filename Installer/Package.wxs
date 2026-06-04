@@ -5,7 +5,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.5"
+           Version="1.0.6"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -63,15 +63,15 @@
                                 ResetPeriodInDays="1" />
           </ServiceInstall>
 
-          <!-- Kurulumda başlat, kaldırmada durdur ve sil.
-               Wait="no": kurulum service'in başlamasını BEKLEMEZ. Best practice;
-               aksi halde service başlatma yavaş/sorunluysa kurulum UI'ı kilitlenir
-               ve başarısızlıkta rollback olur. "Starting services ... [1]" yarım
-               progress metni de bu beklemeden kaynaklanıyordu. Start="auto" zaten
-               kurulumdan hemen sonra ve her açılışta service'i başlatır. -->
+          <!-- Kaldırmada durdur ve sil. KURULUMDA BAŞLATMA YOK (Start yok):
+               MSI'ın StartServices aksiyonu, service başlamazsa "Service failed
+               to start ... Retry/Ignore" diyaloğunu HER ZAMAN gösterir ve bunu
+               bastırmanın MSI/WiX yolu yoktur (Wait="no" bunu engellemez). Ayrıca
+               "[1]" progress metni de buradan geliyordu. Bunun yerine service'i
+               kurulum bittikten SONRA, sessiz bir custom action ile başlatıyoruz
+               (StartAgentService) — başlamazsa kurulumu bozmaz. -->
           <ServiceControl Id="AgentServiceControl"
                           Name="MyAppAgent"
-                          Start="install"
                           Stop="both"
                           Remove="uninstall"
                           Wait="no" />
@@ -120,13 +120,15 @@
       <ComponentRef Id="AppShortcut" />
     </Feature>
 
-    <!-- ============ .NET 8 DESKTOP RUNTIME KONTROLÜ ============ -->
-    <!-- Framework-dependent olduğumuz için hedef makinede .NET 8 Desktop
+    <!-- ============ .NET 9 DESKTOP RUNTIME KONTROLÜ ============ -->
+    <!-- Framework-dependent olduğumuz için hedef makinede .NET 9 Desktop
          Runtime (WindowsDesktop.App) gerekli. Sürüm string'ine bağlı kalmamak
          ve registry bitness yönlendirme sorunlarından kaçınmak için, runtime'ın
          dosya sistemine bıraktığı klasörü arıyoruz:
          C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App
-         Klasör varsa herhangi bir Desktop runtime kurulu demektir. -->
+         Klasör varsa bir Desktop runtime kurulu demektir. (WPF uygulaması
+         Desktop runtime'a, service ise NETCore.App'e ihtiyaç duyar; Desktop
+         runtime kurulumu NETCore.App'i de getirir, bu yüzden tek kontrol yeter.) -->
     <Property Id="NETDESKTOPRUNTIMEDIR">
       <DirectorySearch Id="DotnetRoot" Path="[ProgramFiles64Folder]dotnet\shared">
         <DirectorySearch Id="WindowsDesktopApp" Path="Microsoft.WindowsDesktop.App" />
@@ -136,7 +138,7 @@
     <!-- Kurulu değilse anlamlı mesajla durdur. "Installed OR ..." sayesinde
          koşul yalnızca ilk kurulumda değerlendirilir; kaldırma/onarımda atlanır. -->
     <Launch Condition="Installed OR NETDESKTOPRUNTIMEDIR"
-            Message="Bu uygulama .NET 8 (veya üzeri) Desktop Runtime gerektirir. Lütfen önce şu adresten kurun: https://dotnet.microsoft.com/download/dotnet/8.0/runtime (.NET Desktop Runtime x64)." />
+            Message="Bu uygulama .NET 9 (veya üzeri) Desktop Runtime gerektirir. Lütfen önce şu adresten kurun: https://dotnet.microsoft.com/download/dotnet/9.0/runtime (.NET Desktop Runtime x64)." />
 
     <!-- ============ UNINSTALL PAROLA KORUMASI ============ -->
     <!-- UninstallGuard.dll içindeki CheckUninstallPassword fonksiyonunu bağla -->
@@ -149,6 +151,20 @@
                   Execute="immediate"
                   Return="check" />
 
+    <!-- ============ SERVICE'İ SESSİZ BAŞLATMA ============ -->
+    <!-- Service kurulumda MSI tarafından BAŞLATILMAZ (Retry/Ignore diyaloğu ve
+         "[1]" metnini önlemek için). Bunun yerine kurulum bittikten sonra burada
+         sessizce başlatırız. Deferred + Impersonate="no" → SYSTEM altında çalışır
+         (service'i başlatmaya yetki gerekir). Return="ignore" → service herhangi
+         bir nedenle başlamazsa kurulum yine de BAŞARILI tamamlanır; service zaten
+         Start="auto" olduğu için en geç bir sonraki açılışta çalışmaya başlar. -->
+    <CustomAction Id="StartAgentService"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="[System64Folder]cmd.exe /c sc start MyAppAgent"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
     <InstallExecuteSequence>
       <!-- Sadece KALDIRMA sırasında çalışsın (kurulum/onarım/upgrade değil).
            InstallValidate'ten önce, yani dosyalar silinmeden önce sorar.
@@ -156,6 +172,12 @@
       <Custom Action="CheckUninstallPassword"
               Before="InstallValidate"
               Condition="Installed AND (REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE AND NOT (WIX_UPGRADE_DETECTED)" />
+
+      <!-- Service kayıt edildikten (InstallServices) sonra, kurulum bitmeden hemen
+           önce sessizce başlat. Yalnızca kurma/onarım sırasında; kaldırmada değil. -->
+      <Custom Action="StartAgentService"
+              After="InstallServices"
+              Condition="NOT REMOVE" />
     </InstallExecuteSequence>
 
     <!-- ============ KURULUM ARAYÜZÜ ============ -->

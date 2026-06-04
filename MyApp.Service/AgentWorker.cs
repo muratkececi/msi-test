@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.Versioning;
 
 namespace MyApp.Service;
 
@@ -7,9 +6,7 @@ namespace MyApp.Service;
 /// Arka plan ajanı. Sürekli çalışır; gerçek bir ajanda burada izleme/yedekleme
 /// gibi işler yapılır. Örnek olarak periyodik bir "heartbeat" log'u yazar.
 /// Başlangıçta kendi sürecini Task Manager'dan sonlandırmaya karşı korur.
-/// Yalnızca Windows service olarak çalışır (P/Invoke ile süreç koruması yapar).
 /// </summary>
-[SupportedOSPlatform("windows")]
 public class AgentWorker : BackgroundService
 {
     private readonly ILogger<AgentWorker> _logger;
@@ -33,8 +30,12 @@ public class AgentWorker : BackgroundService
 
             // Kendi sürecini Task Manager'dan "End task"e karşı koru:
             // PROCESS_TERMINATE iznini herkesten kaldır (SYSTEM yine yönetebilir).
-            ProcessProtection.DenyTerminate();
-            Write("Süreç sonlandırma koruması uygulandı (PROCESS_TERMINATE kaldırıldı).");
+            // ProcessProtection yalnızca Windows'ta desteklenir (P/Invoke).
+            if (OperatingSystem.IsWindows())
+            {
+                ProcessProtection.DenyTerminate();
+                Write("Süreç sonlandırma koruması uygulandı (PROCESS_TERMINATE kaldırıldı).");
+            }
         }
         catch (Exception ex)
         {

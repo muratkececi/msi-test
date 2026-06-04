@@ -13,8 +13,8 @@ Basit bir WPF uygulaması ve onu kuran bir MSI. İki koruma katmanı vardır:
 
 ```
 msi-test/
-├── MyApp/            → WPF uygulaması (.NET 8, framework-dependent)
-├── MyApp.Service/    → Arka plan ajanı / Windows service (.NET 8 Worker)
+├── MyApp/            → WPF uygulaması (.NET 9, framework-dependent)
+├── MyApp.Service/    → Arka plan ajanı / Windows service (.NET 9 Worker)
 │                       süreç sonlandırma koruması (DACL) burada
 ├── UninstallGuard/   → Parola soran WiX custom action (.NET Framework 4.7.2)
 └── Installer/        → WiX 5 MSI projesi (her şeyi paketler)
@@ -47,18 +47,21 @@ msi-test/
   Task Manager'dan "End task" yapamaz (Access Denied).
 - Yine de öldürülürse, MSI'da tanımlı **SCM recovery** ayarı (util:ServiceConfig)
   service'i 5 sn içinde yeniden başlatır.
-- Service kurulum sırasında `Start="install"` + `Wait="no"` ile tetiklenir; kurulum
-  başlamasını beklemez (UI kilitlenmesin / rollback olmasın diye). `Start="auto"`
-  sayesinde service kurulumdan hemen sonra ve her açılışta kendiliğinden başlar.
+- Service kurulum sırasında MSI'ın `StartServices` aksiyonuyla **başlatılmaz**;
+  bunun yerine kurulum bittikten sonra sessiz bir custom action (`sc start`)
+  service'i başlatır. Nedeni: MSI service başlatma başarısız olursa "Service failed
+  to start … Retry/Ignore" diyaloğunu her zaman gösterir ve bunu bastırmanın MSI
+  yolu yoktur. Custom action `Return="ignore"` ile başarısızlığı yok sayar; service
+  zaten `Start="auto"` olduğu için en geç bir sonraki açılışta da çalışır.
 
-> **Service neden düz `net8.0` hedefler (`net8.0-windows` değil)?**
+> **Service neden düz `net9.0` hedefler (`net9.0-windows` değil)?**
 > Service yalnızca P/Invoke ile Windows API'leri çağırır (WPF/WinForms kullanmaz).
-> `net8.0-windows` TFM'i `runtimeconfig.json`'a `Microsoft.WindowsDesktop.App`
+> `net9.0-windows` TFM'i `runtimeconfig.json`'a `Microsoft.WindowsDesktop.App`
 > bağımlılığı yazar; SCM service'i başlatırken bu Desktop runtime aranır,
 > bulunamazsa süreç **managed kod hiç çalışmadan çöker** (service başlatılamaz —
 > kurulumda "Starting services" sonrası retry/rollback olarak görülür). Düz
-> `net8.0` yalnızca `Microsoft.NETCore.App` gerektirir; bu her .NET 8 kurulumunda
-> bulunur. (WPF uygulaması ise WPF için `net8.0-windows` + Desktop runtime'a
+> `net9.0` yalnızca `Microsoft.NETCore.App` gerektirir; bu her .NET 9 kurulumunda
+> bulunur. (WPF uygulaması ise WPF için `net9.0-windows` + Desktop runtime'a
 > ihtiyaç duyar; MSI'daki LaunchCondition bunu kontrol eder.)
 
 > **Önemli — neden Task Manager'da parola SORULMUYOR?**
@@ -71,8 +74,8 @@ msi-test/
 
 ## Önkoşullar (Windows)
 
-1. **.NET 8 SDK** (derleme için) — https://dotnet.microsoft.com/download
-2. **Hedef makinede .NET 8 Desktop Runtime** (çalıştırma için). MSI bunu bir
+1. **.NET 9 SDK** (derleme için) — https://dotnet.microsoft.com/download
+2. **Hedef makinede .NET 9 Desktop Runtime** (çalıştırma için). MSI bunu bir
    `LaunchCondition` ile kontrol eder; kurulu değilse kurulumu durdurup
    kullanıcıyı indirme bağlantısına yönlendirir.
 3. WiX araçları NuGet'ten `WixToolset.Sdk` ile gelir; ayrıca global kurulum şart
