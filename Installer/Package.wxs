@@ -199,10 +199,10 @@
          leaks onto the progress dialog during install. Replacing them with
          plain strings removes that cosmetic glitch. -->
     <UI>
-      <ProgressText Action="InstallServices">Registering background service...</ProgressText>
-      <ProgressText Action="StartServices">Starting background service...</ProgressText>
-      <ProgressText Action="StopServices">Stopping background service...</ProgressText>
-      <ProgressText Action="DeleteServices">Removing background service...</ProgressText>
+      <ProgressText Action="InstallServices" Message="Registering background service..." />
+      <ProgressText Action="StartServices" Message="Starting background service..." />
+      <ProgressText Action="StopServices" Message="Stopping background service..." />
+      <ProgressText Action="DeleteServices" Message="Removing background service..." />
     </UI>
 
   </Package>
