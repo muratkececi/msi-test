@@ -222,7 +222,15 @@
          installer's, so the WPF window opens normally and can use ServiceController.
          The target is the installed exe path (the files are harvested with <Files>
          so there is no hand-authored File Id to reference with [#...]). -->
-    <Property Id="WixShellExecTarget" Value="[INSTALLFOLDER]MyApp.exe" />
+    <!-- Resolve [INSTALLFOLDER] into WixShellExecTarget at run time. A plain
+         <Property Value="[INSTALLFOLDER]..."> does NOT resolve (WiX warns it's an
+         illegal property reference); SetProperty schedules a CA that sets it.
+         Scheduled in the UI sequence (after CostFinalize, where directories are
+         resolved) so the value is ready when the ExitDialog runs it. -->
+    <SetProperty Id="WixShellExecTarget"
+                 Value="[INSTALLFOLDER]MyApp.exe"
+                 After="CostFinalize"
+                 Sequence="ui" />
     <CustomAction Id="LaunchApplication"
                   BinaryRef="Wix4UtilCA_X64"
                   DllEntry="WixShellExec"
