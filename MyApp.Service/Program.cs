@@ -15,7 +15,7 @@ if (args.Length > 0 && args[0].Equals("--unprotect", StringComparison.OrdinalIgn
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Windows Service olarak çalış (SCM ile entegre).
+// Run as a Windows Service (integrated with SCM).
 builder.Services.AddWindowsService(options =>
 {
     options.ServiceName = "MyAppAgent";

@@ -11,7 +11,7 @@ Her ikisi de UI/sistem etkileşimi gerektirdiğinden otomatize edilmemiştir.
 
 > **Ortam:** Windows 10/11. Test için tek kullan-at bir VM önerilir
 > (snapshot alıp her testten sonra geri dönmek en temizi).
-> **Master parola:** `Admin123!`
+> **Demo master parolası:** `Admin123!` (yalnızca örnek; üretimde değiştirin)
 
 ---
 
@@ -49,9 +49,9 @@ sc query MyAppAgent
 
 - [ ] Service var ve `STATE: RUNNING`.
 - [ ] `C:\ProgramData\MyApp\agent.log` oluşmuş; içinde
-      `Service başlıyor.` ve
-      `Süreç sonlandırma koruması uygulandı (PROCESS_TERMINATE kaldırıldı).`
-      satırları var ve ~30 sn'de bir heartbeat (`Ajan çalışıyor — PID ...`) ekleniyor.
+      `Service starting.` ve
+      `Process termination protection applied (PROCESS_TERMINATE denied).`
+      satırları var ve ~30 sn'de bir heartbeat (`Agent running — PID ...`) ekleniyor.
 
 ---
 
@@ -63,6 +63,20 @@ sc query MyAppAgent
 > Neden? Service başlarken kendi DACL'inden Interactive kullanıcılar için
 > `PROCESS_TERMINATE` iznini kaldırır. SYSTEM etkilenmediği için SCM service'i
 > hâlâ düzgün yönetebilir.
+
+---
+
+## 3b. DURDURMA KORUMASI — services.msc / `sc stop` ile durdurulamıyor
+
+1. **services.msc** > **MyApp Agent** > sağ tık > **Durdur** (veya yönetici
+   PowerShell'de `sc stop MyAppAgent`).
+- [ ] **"Erişim reddedildi / Access is denied"** alıyorsun; service duruyor değil.
+- [ ] `agent.log`'ta `Service stop protection applied (SERVICE_STOP denied).`
+      satırı var.
+
+> Neden? Service, kendi servis güvenlik tanımlayıcısına Interactive kullanıcılar
+> için `SERVICE_STOP` (SDDL `WP`) reddi ekler. SYSTEM/SCM etkilenmez.
+> Korumayı elle kaldırmak için README'deki "STOP korumasını elle kaldırmak" adımları.
 
 ---
 
@@ -80,7 +94,7 @@ sc query MyAppAgent
 
 - [ ] Öldürme başarılı olsa bile ~5 sn içinde service tekrar `RUNNING` oluyor
       (SCM recovery: FailureAction=restart).
-- [ ] `agent.log`'a yeni bir `Service başlıyor.` satırı ekleniyor.
+- [ ] `agent.log`'a yeni bir `Service starting.` satırı ekleniyor.
 
 ---
 

@@ -6,18 +6,18 @@ using System.Runtime.Versioning;
 namespace MyApp.Service;
 
 /// <summary>
-/// Geçerli süreci Task Manager'dan "End task" ile sonlandırmaya karşı korur.
-/// Sürecin DACL'ine "Interactive" kullanıcılar için PROCESS_TERMINATE'i REDDEDEN
-/// bir ACE ekler.
+/// Protects the current process against being terminated from Task Manager's
+/// "End task". Adds an ACE to the process DACL that DENIES PROCESS_TERMINATE to
+/// "Interactive" users.
 ///
-/// - "Interactive" (S-1-5-4) hedeflenir: oturum açmış kullanıcı/admin'in Task
-///   Manager'dan öldürmesi engellenir.
-/// - SYSTEM "interactive" olmadığı için etkilenmez; SCM service'i yine yönetir.
-/// - SCM düzgün durdurma SERVICE_CONTROL_STOP ile yapılır ve PROCESS_TERMINATE
-///   gerektirmez; bu yüzden temiz durdurma çalışmaya devam eder.
+/// - Targets "Interactive" (S-1-5-4): a logged-on user/admin is blocked from
+///   killing it via Task Manager.
+/// - SYSTEM is not "interactive", so it is unaffected; SCM still manages the service.
+/// - A clean SCM stop uses SERVICE_CONTROL_STOP and does not require
+///   PROCESS_TERMINATE, so proper shutdown keeps working.
 ///
-/// NOT: Bu bir CAYDIRICI korumadır, kernel düzeyi değildir. Kararlı bir admin
-/// DACL'i geri değiştirip yine de sonlandırabilir.
+/// NOTE: This is a DETERRENT, not kernel-level protection. A determined admin can
+/// revert the DACL and still terminate it.
 /// </summary>
 [SupportedOSPlatform("windows")]
 internal static class ProcessProtection
@@ -41,19 +41,19 @@ internal static class ProcessProtection
     {
         IntPtr handle = Process.GetCurrentProcess().Handle;
 
-        // 1) "Interactive" SID'ini oluştur (S-1-5-4).
+        // 1) Build the "Interactive" SID (S-1-5-4).
         IntPtr sid = CreateInteractiveSid();
         try
         {
-            // 2) Mevcut DACL'i al (sürecin diğer izinlerini korumak için).
+            // 2) Get the current DACL (to preserve the process's other permissions).
             uint err = GetSecurityInfo(handle, SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION,
                 IntPtr.Zero, IntPtr.Zero, out IntPtr pOldDacl, IntPtr.Zero, out IntPtr pSD);
             if (err != 0)
-                throw new Win32Exception((int)err, "GetSecurityInfo başarısız");
+                throw new Win32Exception((int)err, "GetSecurityInfo failed");
 
             try
             {
-                // 3) PROCESS_TERMINATE'i reddeden tek bir ACE tanımla.
+                // 3) Define a single ACE that denies PROCESS_TERMINATE.
                 var ea = new EXPLICIT_ACCESS
                 {
                     grfAccessPermissions = PROCESS_TERMINATE,
@@ -69,18 +69,18 @@ internal static class ProcessProtection
                     }
                 };
 
-                // 4) Mevcut DACL'e bu ACE'i ekleyerek yeni DACL üret.
+                // 4) Build a new DACL by adding this ACE to the existing one.
                 err = SetEntriesInAcl(1, ref ea, pOldDacl, out IntPtr pNewDacl);
                 if (err != 0)
-                    throw new Win32Exception((int)err, "SetEntriesInAcl başarısız");
+                    throw new Win32Exception((int)err, "SetEntriesInAcl failed");
 
                 try
                 {
-                    // 5) Yeni DACL'i sürece geri yaz.
+                    // 5) Write the new DACL back to the process.
                     err = SetSecurityInfo(handle, SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION,
                         IntPtr.Zero, IntPtr.Zero, pNewDacl, IntPtr.Zero);
                     if (err != 0)
-                        throw new Win32Exception((int)err, "SetSecurityInfo başarısız");
+                        throw new Win32Exception((int)err, "SetSecurityInfo failed");
                 }
                 finally
                 {
@@ -101,13 +101,13 @@ internal static class ProcessProtection
     private static IntPtr CreateInteractiveSid()
     {
         uint cb = 0;
-        // İlk çağrı boyutu öğrenmek için (false döner, ERROR_INSUFFICIENT_BUFFER).
+        // First call to learn the required size (returns false, ERROR_INSUFFICIENT_BUFFER).
         CreateWellKnownSid(WinInteractiveSid, IntPtr.Zero, IntPtr.Zero, ref cb);
         IntPtr sid = Marshal.AllocHGlobal((int)cb);
         if (!CreateWellKnownSid(WinInteractiveSid, IntPtr.Zero, sid, ref cb))
         {
             Marshal.FreeHGlobal(sid);
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "CreateWellKnownSid başarısız");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "CreateWellKnownSid failed");
         }
         return sid;
     }

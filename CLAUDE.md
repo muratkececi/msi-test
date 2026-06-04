@@ -9,17 +9,20 @@ Guidance for working in this repository.
 - Use imperative mood ("add", "fix", not "added"/"fixes").
 - **Do NOT add a `Co-Authored-By:` trailer.**
 - Commit or push only when asked. If on `main`, branch first unless told otherwise.
-- User-facing strings inside the MSI (dialog/error messages) stay **Turkish** —
-  that is product copy, not code. Only comments and commits are English.
+- Write everything in **English** — comments, commits, AND user-facing strings
+  (MSI dialog/error messages, log lines).
 
 ## What this project is
 
 A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
 
 1. **Uninstall protection** — a master-password prompt blocks unauthorized uninstalls.
-2. **Stop protection** — a Windows service runs as SYSTEM and resists Task Manager
-   "End task" (process DACL denies `PROCESS_TERMINATE` to Interactive users); SCM
-   recovery restarts it if killed.
+2. **Stop protection** — a Windows service runs as SYSTEM and resists being stopped:
+   - Task Manager "End task" → process DACL denies `PROCESS_TERMINATE` to Interactive
+     users (`ProcessProtection.cs`); SCM recovery restarts it if force-killed.
+   - services.msc / `sc stop` → the service DACL denies `SERVICE_STOP` (SDDL `WP`) to
+     Interactive users (`ServiceProtection.cs`). A `--unprotect` maintenance mode and an
+     uninstall-time custom action strip that ACE so removal is never blocked.
 
 > A password CANNOT be prompted on Task Manager "End task" — the kernel calls
 > `TerminateProcess` and no app code runs. Passwords only gate paths the app
@@ -31,7 +34,7 @@ A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
 | Project | TFM | Role |
 |---|---|---|
 | `MyApp/` | `net9.0-windows` | WPF app (framework-dependent) |
-| `MyApp.Service/` | `net9.0` | Worker service "MyAppAgent"; process-kill protection (`ProcessProtection.cs`) |
+| `MyApp.Service/` | `net9.0` | Worker service "MyAppAgent"; kill protection (`ProcessProtection.cs`) + stop protection (`ServiceProtection.cs`) |
 | `UninstallGuard/` | `net472` | WiX DTF managed custom action; password prompt (`CustomActions.cs`) |
 | `Installer/` | WiX 5 (`WixToolset.Sdk/5.0.2`) | MSI that packages everything (`Package.wxs`) |
 
@@ -88,7 +91,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # triggers the Release
   `Start="auto"` is the fallback at next boot.
 - Custom action DLL is `UninstallGuard.CA.dll`; it needs `CustomAction.config`
   (`useLegacyV2RuntimeActivationPolicy`) or it fails to load the CLR (1603 / 0x80131700).
-- `Package.wxs` uses `Codepage="65001"` (UTF-8) for Turkish characters in messages.
+- `Package.wxs` uses `Codepage="65001"` (UTF-8) for message text.
 - `InstallerPlatform=x64` is required (components live under `ProgramFiles64Folder`).
 - **WiX does not build on macOS/Linux** — the `Installer` project only compiles on
   Windows (CI). Don't treat WiX edits as verified until the CI build is green.
@@ -98,3 +101,15 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # triggers the Release
 - `README.md` — overview, build, security notes.
 - `TESTING.md` — manual test checklist (install, both protections, uninstall, upgrade).
   Keep both in sync when behavior or versions change.
+- `docs/PROTECTION-PROMPT.md` — single combined prompt to port the protection layers
+  into another project.
+- `docs/protection/` — the same prompt split into per-step files (uninstall password,
+  Task Manager protection, services.msc protection, progress-text cleanup) to apply
+  one at a time.
+
+## Security note (public repo)
+
+This repository is public. The master password `Admin123!` is a **demo** value,
+intentionally documented for testing. In production, change it (regenerate the
+SHA-256 hash in `UninstallGuard/CustomActions.cs`) or move validation to a server
+API. Keep example URLs generic (`api.example.com`), not real internal hosts.

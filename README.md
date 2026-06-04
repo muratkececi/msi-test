@@ -25,7 +25,9 @@ msi-test/
 ### 1) Kaldırma (uninstall) — master parola
 
 - Kaldırma sırasında MSI custom action devreye girer ve parola sorar.
-- Parola: `Admin123!`
+- **Demo parolası:** `Admin123!` — bu yalnızca örnek amaçlıdır ve repo public
+  olduğu için herkese açıktır. **Üretimde mutlaka değiştirin** (aşağıdaki adımla
+  kendi parolanızın hash'ini üretip gömün) veya doğrulamayı bir API'ye taşıyın.
 - Kodda parolanın kendisi DEĞİL, SHA-256 hash'i gömülüdür
   (`UninstallGuard/CustomActions.cs` içindeki `MasterPasswordHash`).
 - Yeni hash üretmek için (PowerShell):
@@ -172,7 +174,7 @@ private static bool Verify(string password)
     using (var client = new System.Net.Http.HttpClient())
     {
         var resp = client.PostAsync(
-            "https://api.icredible.com/uninstall/validate",
+            "https://api.example.com/uninstall/validate",
             new System.Net.Http.StringContent(password)).Result;
         return resp.IsSuccessStatusCode;
     }

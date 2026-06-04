@@ -10,8 +10,8 @@ namespace UninstallGuard
 {
     public class CustomActions
     {
-        // Master parola: "Admin123!"  (SHA-256, BÜYÜK harf hex)
-        // ÜRETİM ÖNERİSİ: Burada offline hash yerine bir API'ye doğrulama yapın.
+        // Master password: "Admin123!"  (SHA-256, UPPERCASE hex)
+        // PRODUCTION TIP: validate against an API instead of this offline hash.
         private const string MasterPasswordHash =
             "3EB3FE66B31E3B4D10FA70B5CAD49C7112294AF6AE4E476A1C405155D45AA121";
 
@@ -21,78 +21,78 @@ namespace UninstallGuard
         private static string _logFile;
 
         /// <summary>
-        /// Uninstall sırasında çalışır. Doğru parola girilmezse kurulumu iptal eder.
+        /// Runs during uninstall. Cancels the operation unless the correct password is entered.
         /// </summary>
         [CustomAction]
         public static ActionResult CheckUninstallPassword(Session session)
         {
             _session = session;
 
-            // Log dosyasını kurulum klasörüne (Program Files\MyApp) yazmaya hazırlan.
-            // INSTALLFOLDER kaldırma sırasında da çözümlenir.
+            // Prepare to write the log file into the install folder (Program Files\MyApp).
+            // INSTALLFOLDER is resolved during uninstall too.
             try
             {
                 string installDir = session["INSTALLFOLDER"];
                 if (!string.IsNullOrEmpty(installDir) && Directory.Exists(installDir))
                     _logFile = Path.Combine(installDir, "uninstall-guard.log");
             }
-            catch { /* log dosyası ayarlanamazsa MSI log'una düşmeye devam ederiz */ }
+            catch { /* if the log file can't be set, we still fall back to the MSI log */ }
 
             try
             {
-                Log("CheckUninstallPassword başladı.");
+                Log("CheckUninstallPassword started.");
 
                 string uiLevel = session["UILevel"];
                 Log("UILevel = " + uiLevel);
 
-                // Sessiz mod (/qn) tespiti: UI yoksa parola soramayız.
-                // INSTALLUILEVEL_NONE = 2. Güvenlik gereği UI yoksa engelliyoruz.
+                // Silent mode (/qn) detection: with no UI we can't prompt for a password.
+                // INSTALLUILEVEL_NONE = 2. For safety we block when there is no UI.
                 if (uiLevel == "2")
                 {
-                    Log("Sessiz mod algılandı. Uninstall engellendi.");
+                    Log("Silent mode detected. Uninstall blocked.");
                     return ActionResult.Failure;
                 }
 
                 for (int attempt = 1; attempt <= MaxAttempts; attempt++)
                 {
-                    Log($"Parola ekranı gösteriliyor (deneme {attempt}).");
+                    Log($"Showing password prompt (attempt {attempt}).");
 
-                    // WinForms penceresini AYRI bir STA thread'inde aç.
-                    // MSI custom action thread'i STA olmayabilir; bu, pencerenin
-                    // görünmeden çökmesini engeller.
+                    // Open the WinForms window on a SEPARATE STA thread. The MSI
+                    // custom action thread may not be STA; this prevents the window
+                    // from crashing without ever appearing.
                     string entered = ShowPromptOnStaThread(attempt);
 
                     if (entered == null)
                     {
-                        Log("Kullanıcı parola ekranını iptal etti.");
+                        Log("User cancelled the password prompt.");
                         return ActionResult.Failure;
                     }
 
                     if (Verify(entered))
                     {
-                        Log("Parola doğru. Uninstall'a izin verildi.");
+                        Log("Correct password. Uninstall allowed.");
                         return ActionResult.Success;
                     }
 
-                    Log($"Yanlış parola denemesi {attempt}/{MaxAttempts}.");
+                    Log($"Wrong password attempt {attempt}/{MaxAttempts}.");
                 }
 
                 ShowMessageOnStaThread(
-                    "Çok fazla hatalı deneme. Kaldırma işlemi iptal edildi.",
-                    "Yetkisiz İşlem");
+                    "Too many failed attempts. Uninstall has been cancelled.",
+                    "Unauthorized");
 
-                Log("Maksimum deneme aşıldı. Uninstall engellendi.");
+                Log("Maximum attempts exceeded. Uninstall blocked.");
                 return ActionResult.Failure;
             }
             catch (Exception ex)
             {
-                Log("HATA -> " + ex);
-                // Güvenlik gereği: parola kontrolü çökerse kaldırmayı ENGELLE.
+                Log("ERROR -> " + ex);
+                // For safety: if the password check crashes, BLOCK the uninstall.
                 return ActionResult.Failure;
             }
         }
 
-        // Hem MSI log'una hem de Program Files\MyApp\uninstall-guard.log'a yazar.
+        // Writes to both the MSI log and Program Files\MyApp\uninstall-guard.log.
         private static void Log(string message)
         {
             try { _session?.Log("UninstallGuard: " + message); } catch { }
@@ -105,7 +105,7 @@ namespace UninstallGuard
                 string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}{Environment.NewLine}";
                 File.AppendAllText(_logFile, line, Encoding.UTF8);
             }
-            catch { /* dosyaya yazılamazsa sessizce geç */ }
+            catch { /* if the file can't be written, fail silently */ }
         }
 
         private static string ShowPromptOnStaThread(int attempt)

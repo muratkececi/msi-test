@@ -10,10 +10,10 @@
            Codepage="65001"
            Scope="perMachine">
 
-    <!-- Eski sürümleri otomatik kaldırma desteği -->
-    <MajorUpgrade DowngradeErrorMessage="Daha yeni bir sürüm zaten kurulu." />
+    <!-- Automatic removal of older versions on upgrade -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
 
-    <!-- Tek bir MSI dosyasında gömülü cab -->
+    <!-- Single MSI file with an embedded cab -->
     <MediaTemplate EmbedCab="yes" />
 
     <!-- ============ FILES ============ -->
@@ -47,7 +47,7 @@
           <ServiceInstall Id="AgentServiceInstall"
                           Name="MyAppAgent"
                           DisplayName="MyApp Agent"
-                          Description="MyApp arka plan ajanı (korumalı)."
+                          Description="MyApp background agent (protected)."
                           Type="ownProcess"
                           Start="auto"
                           ErrorControl="normal"
@@ -99,7 +99,7 @@
       </Files>
     </ComponentGroup>
 
-    <!-- Başlat menüsü kısayolu -->
+    <!-- Start menu shortcut -->
     <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="AppShortcutFolder" Name="MyApp">
         <Component Id="AppShortcut" Guid="*">
@@ -128,28 +128,29 @@
       <ComponentRef Id="AppShortcut" />
     </Feature>
 
-    <!-- ============ .NET 9 DESKTOP RUNTIME KONTROLÜ ============ -->
-    <!-- Framework-dependent olduğumuz için hedef makinede .NET 9 Desktop
-         Runtime (WindowsDesktop.App) gerekli. Sürüm string'ine bağlı kalmamak
-         ve registry bitness yönlendirme sorunlarından kaçınmak için, runtime'ın
-         dosya sistemine bıraktığı klasörü arıyoruz:
+    <!-- ============ .NET 9 DESKTOP RUNTIME CHECK ============ -->
+    <!-- Being framework-dependent, the target machine needs the .NET 9 Desktop
+         Runtime (WindowsDesktop.App). To avoid depending on a version string and
+         to sidestep registry bitness-redirection issues, we look for the folder
+         the runtime drops on disk:
          C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App
-         Klasör varsa bir Desktop runtime kurulu demektir. (WPF uygulaması
-         Desktop runtime'a, service ise NETCore.App'e ihtiyaç duyar; Desktop
-         runtime kurulumu NETCore.App'i de getirir, bu yüzden tek kontrol yeter.) -->
+         If the folder exists, a Desktop runtime is installed. (The WPF app needs
+         the Desktop runtime, the service needs NETCore.App; installing the
+         Desktop runtime also brings NETCore.App, so one check is enough.) -->
     <Property Id="NETDESKTOPRUNTIMEDIR">
       <DirectorySearch Id="DotnetRoot" Path="[ProgramFiles64Folder]dotnet\shared">
         <DirectorySearch Id="WindowsDesktopApp" Path="Microsoft.WindowsDesktop.App" />
       </DirectorySearch>
     </Property>
 
-    <!-- Kurulu değilse anlamlı mesajla durdur. "Installed OR ..." sayesinde
-         koşul yalnızca ilk kurulumda değerlendirilir; kaldırma/onarımda atlanır. -->
+    <!-- If not installed, stop with a meaningful message. Thanks to "Installed OR
+         ...", the condition is only evaluated on first install; it is skipped on
+         uninstall/repair. -->
     <Launch Condition="Installed OR NETDESKTOPRUNTIMEDIR"
-            Message="Bu uygulama .NET 9 (veya üzeri) Desktop Runtime gerektirir. Lütfen önce şu adresten kurun: https://dotnet.microsoft.com/download/dotnet/9.0/runtime (.NET Desktop Runtime x64)." />
+            Message="This application requires the .NET 9 (or later) Desktop Runtime. Please install it first from: https://dotnet.microsoft.com/download/dotnet/9.0/runtime (.NET Desktop Runtime x64)." />
 
     <!-- ============ UNINSTALL PAROLA KORUMASI ============ -->
-    <!-- UninstallGuard.dll içindeki CheckUninstallPassword fonksiyonunu bağla -->
+    <!-- Bind the CheckUninstallPassword function from UninstallGuard.dll -->
     <Binary Id="UninstallGuardBinary"
             SourceFile="$(var.UninstallGuard.TargetDir)UninstallGuard.CA.dll" />
 
@@ -159,16 +160,20 @@
                   Execute="immediate"
                   Return="check" />
 
-    <!-- ============ SERVICE'İ SESSİZ BAŞLATMA ============ -->
-    <!-- Service kurulumda MSI tarafından BAŞLATILMAZ (Retry/Ignore diyaloğu ve
-         "[1]" metnini önlemek için). Bunun yerine kurulum bittikten sonra burada
-         sessizce başlatırız. Deferred + Impersonate="no" → SYSTEM altında çalışır
-         (service'i başlatmaya yetki gerekir). Return="ignore" → service herhangi
-         bir nedenle başlamazsa kurulum yine de BAŞARILI tamamlanır; service zaten
-         Start="auto" olduğu için en geç bir sonraki açılışta çalışmaya başlar. -->
+    <!-- ============ START THE SERVICE SILENTLY ============ -->
+    <!-- The service is NOT started by MSI during install (to avoid the
+         Retry/Ignore dialog and the "[1]" text). Instead we start it silently
+         here after install completes. Deferred + Impersonate="no" runs it as
+         SYSTEM (starting a service requires privilege). Return="ignore" means
+         if the service fails to start for any reason the install still SUCCEEDS;
+         since Start="auto", it will run by the next boot at the latest. -->
+    <!-- TEMP DEBUG: the trailing `ping ... -n 3` adds a ~2s delay so the progress
+         text stays on screen long enough to read while we verify the [1] [2] fix.
+         REMOVE this delay (revert ExeCommand to just `sc start MyAppAgent`) once
+         confirmed. -->
     <CustomAction Id="StartAgentService"
                   Directory="INSTALLFOLDER"
-                  ExeCommand="[System64Folder]cmd.exe /c sc start MyAppAgent"
+                  ExeCommand="[System64Folder]cmd.exe /c sc start MyAppAgent &amp; ping 127.0.0.1 -n 3 &gt; nul"
                   Execute="deferred"
                   Impersonate="no"
                   Return="ignore" />
@@ -187,10 +192,25 @@
                   Impersonate="no"
                   Return="ignore" />
 
+    <!-- TEMP DEBUG: a do-nothing 2s delay scheduled right AFTER InstallServices so
+         the InstallServices / service-config progress text stays readable while we
+         verify the [1] [2] fix. REMOVE this action and its sequencing afterwards. -->
+    <CustomAction Id="DebugPauseAfterInstallServices"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="[System64Folder]cmd.exe /c ping 127.0.0.1 -n 3 &gt; nul"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
     <InstallExecuteSequence>
-      <!-- Sadece KALDIRMA sırasında çalışsın (kurulum/onarım/upgrade değil).
-           InstallValidate'ten önce, yani dosyalar silinmeden önce sorar.
-           Parola yanlışsa Return="check" sayesinde tüm uninstall iptal olur. -->
+      <!-- TEMP DEBUG: see CustomAction above. Runs only on install/repair. -->
+      <Custom Action="DebugPauseAfterInstallServices"
+              After="InstallServices"
+              Condition="NOT REMOVE" />
+
+      <!-- Run only during UNINSTALL (not install/repair/upgrade). Before
+           InstallValidate, i.e. it prompts before any files are removed. On a
+           wrong password, Return="check" cancels the entire uninstall. -->
       <Custom Action="CheckUninstallPassword"
               Before="InstallValidate"
               Condition="Installed AND (REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE AND NOT (WIX_UPGRADE_DETECTED)" />
@@ -234,6 +254,8 @@
       <ProgressText Action="StartAgentService"     Message="Starting background service" Template="Starting background service" />
       <ProgressText Action="UnprotectAgentService" Message="Preparing background service for removal" Template="Preparing background service for removal" />
       <ProgressText Action="CheckUninstallPassword" Message="Verifying uninstall password" Template="Verifying uninstall password" />
+      <!-- TEMP DEBUG action: give it a clean row too so IT doesn't show [1] [2]. -->
+      <ProgressText Action="DebugPauseAfterInstallServices" Message="Configuring background service" Template="Configuring background service" />
 
       <!-- WixUtil's service-config custom actions (recovery settings). Their
            default progress template is the most likely source of the raw

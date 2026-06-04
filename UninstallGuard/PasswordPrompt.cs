@@ -5,8 +5,8 @@ using System.Windows.Forms;
 namespace UninstallGuard
 {
     /// <summary>
-    /// Kod ile oluşturulan basit parola giriş penceresi.
-    /// Show() doğru/yanlış değil, GİRİLEN metni döndürür (iptalde null).
+    /// A simple, code-built password entry window.
+    /// Show() returns the ENTERED text (not a pass/fail), or null on cancel.
     /// </summary>
     internal static class PasswordPrompt
     {
@@ -18,7 +18,7 @@ namespace UninstallGuard
             using (var okButton = new Button())
             using (var cancelButton = new Button())
             {
-                form.Text = "Kaldırma için Yönetici Parolası";
+                form.Text = "Administrator Password Required to Uninstall";
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.MinimizeBox = false;
@@ -27,19 +27,19 @@ namespace UninstallGuard
                 form.TopMost = true;
 
                 label.Text = attempt == 1
-                    ? "Bu uygulamayı kaldırmak için master parolayı girin:"
-                    : $"Hatalı parola. Tekrar deneyin ({attempt}/{maxAttempts}):";
+                    ? "Enter the master password to uninstall this application:"
+                    : $"Wrong password. Try again ({attempt}/{maxAttempts}):";
                 label.SetBounds(15, 15, 350, 30);
                 label.AutoSize = false;
 
                 textBox.UseSystemPasswordChar = true;
                 textBox.SetBounds(15, 50, 350, 25);
 
-                okButton.Text = "Onayla";
+                okButton.Text = "OK";
                 okButton.DialogResult = DialogResult.OK;
                 okButton.SetBounds(190, 95, 80, 30);
 
-                cancelButton.Text = "İptal";
+                cancelButton.Text = "Cancel";
                 cancelButton.DialogResult = DialogResult.Cancel;
                 cancelButton.SetBounds(285, 95, 80, 30);
 
@@ -50,8 +50,8 @@ namespace UninstallGuard
                 form.AcceptButton = okButton;
                 form.CancelButton = cancelButton;
 
-                // Pencere kesinlikle en önde ve odakta açılsın
-                // (aksi halde MSI penceresinin arkasında kalıp gözden kaçabilir).
+                // Make sure the window opens on top and focused
+                // (otherwise it can hide behind the MSI window and be missed).
                 form.ShowInTaskbar = true;
                 form.Shown += (s, e) =>
                 {

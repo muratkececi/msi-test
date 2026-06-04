@@ -3,15 +3,15 @@ using System.Diagnostics;
 namespace MyApp.Service;
 
 /// <summary>
-/// Arka plan ajanı. Sürekli çalışır; gerçek bir ajanda burada izleme/yedekleme
-/// gibi işler yapılır. Örnek olarak periyodik bir "heartbeat" log'u yazar.
-/// Başlangıçta kendi sürecini Task Manager'dan sonlandırmaya karşı korur.
+/// Background agent. Runs continuously; a real agent would do monitoring/backup
+/// work here. As an example it writes a periodic "heartbeat" log. At startup it
+/// protects its own process against being terminated from Task Manager.
 /// </summary>
 public class AgentWorker : BackgroundService
 {
     private readonly ILogger<AgentWorker> _logger;
 
-    // Service SYSTEM altında çalıştığı için ProgramData yazılabilir ve kalıcıdır.
+    // The service runs as SYSTEM, so ProgramData is writable and persistent.
     private static readonly string LogDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "MyApp");
     private static readonly string LogFile = Path.Combine(LogDir, "agent.log");
@@ -26,14 +26,14 @@ public class AgentWorker : BackgroundService
         try
         {
             Directory.CreateDirectory(LogDir);
-            Write("Service başlıyor.");
+            Write("Service starting.");
 
             // Protect against Task Manager "End task": remove PROCESS_TERMINATE
             // from the process DACL (SYSTEM can still manage it). Windows-only (P/Invoke).
             if (OperatingSystem.IsWindows())
             {
                 ProcessProtection.DenyTerminate();
-                Write("Süreç sonlandırma koruması uygulandı (PROCESS_TERMINATE kaldırıldı).");
+                Write("Process termination protection applied (PROCESS_TERMINATE denied).");
 
                 // Also block services.msc / `sc stop` for interactive users by
                 // denying SERVICE_STOP on the service object. SCM/SYSTEM keep
@@ -41,18 +41,18 @@ public class AgentWorker : BackgroundService
                 try
                 {
                     ServiceProtection.DenyInteractiveStop("MyAppAgent");
-                    Write("Servis durdurma koruması uygulandı (SERVICE_STOP reddedildi). "
+                    Write("Service stop protection applied (SERVICE_STOP denied). "
                         + ServiceProtection.RevertHint);
                 }
                 catch (Exception ex)
                 {
-                    Write("Servis durdurma koruması uygulanamadı: " + ex.Message);
+                    Write("Service stop protection could not be applied: " + ex.Message);
                 }
             }
         }
         catch (Exception ex)
         {
-            Write("Başlangıç koruması uygulanamadı: " + ex.Message);
+            Write("Startup protection could not be applied: " + ex.Message);
         }
 
         return base.StartAsync(cancellationToken);
@@ -62,7 +62,7 @@ public class AgentWorker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            Write($"Ajan çalışıyor — PID {Environment.ProcessId}.");
+            Write($"Agent running — PID {Environment.ProcessId}.");
             try
             {
                 await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
@@ -76,10 +76,10 @@ public class AgentWorker : BackgroundService
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
-        // Buraya SADECE SCM düzgün durdurduğunda (services.msc / sc stop) gelinir.
-        // Task Manager'dan zorla öldürmede bu çalışmaz; o durumda SCM recovery
-        // ayarı service'i yeniden başlatır.
-        Write("Service düzgün şekilde durduruluyor (SCM).");
+        // This is reached ONLY on a clean SCM stop (services.msc / sc stop).
+        // It does NOT run on a forced kill from Task Manager; in that case the
+        // SCM recovery setting restarts the service.
+        Write("Service stopping cleanly (SCM).");
         return base.StopAsync(cancellationToken);
     }
 
