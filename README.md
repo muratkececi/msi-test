@@ -41,12 +41,32 @@ msi-test/
 ### 2) Durdurma (Task Manager) — service + DACL + SCM recovery
 
 - `MyAppAgent` adlı bir Windows service kurulur (LocalSystem, otomatik başlatma).
-- Service başlarken kendi sürecinin DACL'ine, **Interactive** kullanıcılar için
-  `PROCESS_TERMINATE` iznini **reddeden** bir ACE ekler
-  (`MyApp.Service/ProcessProtection.cs`). Böylece oturum açmış kullanıcı/admin
+- **Task Manager koruması:** Service başlarken kendi sürecinin DACL'ine,
+  **Interactive** kullanıcılar için `PROCESS_TERMINATE` iznini **reddeden** bir ACE
+  ekler (`MyApp.Service/ProcessProtection.cs`). Böylece oturum açmış kullanıcı/admin
   Task Manager'dan "End task" yapamaz (Access Denied).
-- Yine de öldürülürse, MSI'da tanımlı **SCM recovery** ayarı (util:ServiceConfig)
-  service'i 5 sn içinde yeniden başlatır.
+- **services.msc / `sc stop` koruması:** Service ayrıca kendi **servis** güvenlik
+  tanımlayıcısına, Interactive kullanıcılar için `SERVICE_STOP` (SDDL'de `WP`)
+  iznini reddeden bir ACE ekler (`MyApp.Service/ServiceProtection.cs`). Böylece
+  normal/yönetici kullanıcı `services.msc`'den "Durdur" diyemez. SYSTEM ve SCM
+  etkilenmez; düzgün durdurma ve recovery çalışmaya devam eder.
+- Yine de **zorla öldürülürse** (Task Manager End task / `taskkill /F`), MSI'da
+  tanımlı **SCM recovery** ayarı (util:ServiceConfig) service'i 5 sn içinde
+  yeniden başlatır. (Not: `services.msc`'den **bilinçli** "Durdur" recovery'yi
+  tetiklemez — Windows bunu hata saymaz; bu yüzden yukarıdaki STOP reddi eklendi.)
+
+> **STOP korumasını elle kaldırmak istersen** (yönetici olarak):
+> En kolayı MSI'ı **yeniden kurmak/kaldırmaktır** — kaldırma sırasında koruma
+> otomatik temizlenir, yeniden kurulumda servis güvenliği sıfırlanır.
+> Servisi silmeden, sadece reddi kaldırmak istersen:
+> ```powershell
+> sc sdshow MyAppAgent            # mevcut SDDL'i göster
+> # Çıktıdaki "(D;;WP;;;IU)" parçasını çıkarıp kalan SDDL ile:
+> sc sdset MyAppAgent "<(D;;WP;;;IU) parçası çıkarılmış SDDL>"
+> ```
+> Ya da servis exe'sinin bakım modunu kullan (SYSTEM/yönetici gerektirir):
+> servis `--unprotect` argümanıyla çalıştırıldığında yalnızca bu reddi kaldırıp
+> çıkar (kaldırma sırasında MSI da bunu çağırır).
 - Service kurulum sırasında MSI'ın `StartServices` aksiyonuyla **başlatılmaz**;
   bunun yerine kurulum bittikten sonra sessiz bir custom action (`sc start`)
   service'i başlatır. Nedeni: MSI service başlatma başarısız olursa "Service failed

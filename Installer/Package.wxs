@@ -5,7 +5,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.7"
+           Version="1.0.8"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -173,6 +173,20 @@
                   Impersonate="no"
                   Return="ignore" />
 
+    <!-- ============ REMOVE SERVICE-STOP PROTECTION ON UNINSTALL ============ -->
+    <!-- At runtime the service adds a deny ACE for SERVICE_STOP (Interactive) to
+         its own security descriptor, so services.msc / `sc stop` are blocked.
+         During uninstall that ACE would also block MSI's StopServices. Run the
+         service exe in unprotect mode (which only strips the ACE and exits)
+         BEFORE StopServices, as SYSTEM, so the service can then be stopped and
+         removed. Return="ignore" so uninstall never fails because of this. -->
+    <CustomAction Id="UnprotectAgentService"
+                  Directory="AGENTFOLDER"
+                  ExeCommand="&quot;[AGENTFOLDER]MyApp.Service.exe&quot; --unprotect"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
     <InstallExecuteSequence>
       <!-- Sadece KALDIRMA sırasında çalışsın (kurulum/onarım/upgrade değil).
            InstallValidate'ten önce, yani dosyalar silinmeden önce sorar.
@@ -181,11 +195,18 @@
               Before="InstallValidate"
               Condition="Installed AND (REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE AND NOT (WIX_UPGRADE_DETECTED)" />
 
-      <!-- Service kayıt edildikten (InstallServices) sonra, kurulum bitmeden hemen
-           önce sessizce başlat. Yalnızca kurma/onarım sırasında; kaldırmada değil. -->
+      <!-- After the service is registered (InstallServices), start it silently
+           just before install finishes. Install/repair only, not uninstall. -->
       <Custom Action="StartAgentService"
               After="InstallServices"
               Condition="NOT REMOVE" />
+
+      <!-- On uninstall, strip the SERVICE_STOP deny ACE before MSI tries to stop
+           the service (StopServices), so the stop/remove can proceed. Runs only
+           when the service is actually being removed. -->
+      <Custom Action="UnprotectAgentService"
+              Before="StopServices"
+              Condition="REMOVE=&quot;ALL&quot;" />
     </InstallExecuteSequence>
 
     <!-- ============ INSTALL UI ============ -->
@@ -194,15 +215,16 @@
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
     <!-- Override the built-in progress text of the service-related standard
-         actions. Their default templates contain [1]/[2] tokens that Windows
-         Installer does not always fill, so the raw "Service: [1] [2]" text
-         leaks onto the progress dialog during install. Replacing them with
-         plain strings removes that cosmetic glitch. -->
+         actions. The raw "Service: [1] [2]" that leaks onto the progress dialog
+         comes from the ActionText *Template* column (the detail line), NOT the
+         Description. So the Template attribute is what kills the [1]/[2] tokens;
+         Message only sets the heading. We set Template to a plain token-free
+         string for each service action. -->
     <UI>
-      <ProgressText Action="InstallServices" Message="Registering background service..." />
-      <ProgressText Action="StartServices" Message="Starting background service..." />
-      <ProgressText Action="StopServices" Message="Stopping background service..." />
-      <ProgressText Action="DeleteServices" Message="Removing background service..." />
+      <ProgressText Action="InstallServices" Message="Background service" Template="Configuring the background service" />
+      <ProgressText Action="StartServices"   Message="Background service" Template="Starting the background service" />
+      <ProgressText Action="StopServices"    Message="Background service" Template="Stopping the background service" />
+      <ProgressText Action="DeleteServices"  Message="Background service" Template="Removing the background service" />
     </UI>
 
   </Package>

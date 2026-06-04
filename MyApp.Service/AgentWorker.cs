@@ -28,13 +28,26 @@ public class AgentWorker : BackgroundService
             Directory.CreateDirectory(LogDir);
             Write("Service başlıyor.");
 
-            // Kendi sürecini Task Manager'dan "End task"e karşı koru:
-            // PROCESS_TERMINATE iznini herkesten kaldır (SYSTEM yine yönetebilir).
-            // ProcessProtection yalnızca Windows'ta desteklenir (P/Invoke).
+            // Protect against Task Manager "End task": remove PROCESS_TERMINATE
+            // from the process DACL (SYSTEM can still manage it). Windows-only (P/Invoke).
             if (OperatingSystem.IsWindows())
             {
                 ProcessProtection.DenyTerminate();
                 Write("Süreç sonlandırma koruması uygulandı (PROCESS_TERMINATE kaldırıldı).");
+
+                // Also block services.msc / `sc stop` for interactive users by
+                // denying SERVICE_STOP on the service object. SCM/SYSTEM keep
+                // their rights, so proper shutdown and recovery still work.
+                try
+                {
+                    ServiceProtection.DenyInteractiveStop("MyAppAgent");
+                    Write("Servis durdurma koruması uygulandı (SERVICE_STOP reddedildi). "
+                        + ServiceProtection.RevertHint);
+                }
+                catch (Exception ex)
+                {
+                    Write("Servis durdurma koruması uygulanamadı: " + ex.Message);
+                }
             }
         }
         catch (Exception ex)
