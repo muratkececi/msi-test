@@ -5,7 +5,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.4"
+           Version="1.0.5"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -53,7 +53,7 @@
                           Start="auto"
                           ErrorControl="normal"
                           Account="LocalSystem"
-                          Vital="yes">
+                          Vital="no">
             <!-- Öldürülürse SCM yeniden başlatsın: ilk/ikinci/sonraki hatalarda
                  5 sn sonra restart; sayaç 1 günde sıfırlanır. -->
             <util:ServiceConfig FirstFailureActionType="restart"
@@ -63,13 +63,18 @@
                                 ResetPeriodInDays="1" />
           </ServiceInstall>
 
-          <!-- Kurulumda başlat, kaldırmada durdur ve sil. -->
+          <!-- Kurulumda başlat, kaldırmada durdur ve sil.
+               Wait="no": kurulum service'in başlamasını BEKLEMEZ. Best practice;
+               aksi halde service başlatma yavaş/sorunluysa kurulum UI'ı kilitlenir
+               ve başarısızlıkta rollback olur. "Starting services ... [1]" yarım
+               progress metni de bu beklemeden kaynaklanıyordu. Start="auto" zaten
+               kurulumdan hemen sonra ve her açılışta service'i başlatır. -->
           <ServiceControl Id="AgentServiceControl"
                           Name="MyAppAgent"
                           Start="install"
                           Stop="both"
                           Remove="uninstall"
-                          Wait="yes" />
+                          Wait="no" />
         </Component>
 
         <Component Id="AgentServiceDll" Guid="*">

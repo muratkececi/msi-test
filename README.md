@@ -47,6 +47,19 @@ msi-test/
   Task Manager'dan "End task" yapamaz (Access Denied).
 - Yine de öldürülürse, MSI'da tanımlı **SCM recovery** ayarı (util:ServiceConfig)
   service'i 5 sn içinde yeniden başlatır.
+- Service kurulum sırasında `Start="install"` + `Wait="no"` ile tetiklenir; kurulum
+  başlamasını beklemez (UI kilitlenmesin / rollback olmasın diye). `Start="auto"`
+  sayesinde service kurulumdan hemen sonra ve her açılışta kendiliğinden başlar.
+
+> **Service neden düz `net8.0` hedefler (`net8.0-windows` değil)?**
+> Service yalnızca P/Invoke ile Windows API'leri çağırır (WPF/WinForms kullanmaz).
+> `net8.0-windows` TFM'i `runtimeconfig.json`'a `Microsoft.WindowsDesktop.App`
+> bağımlılığı yazar; SCM service'i başlatırken bu Desktop runtime aranır,
+> bulunamazsa süreç **managed kod hiç çalışmadan çöker** (service başlatılamaz —
+> kurulumda "Starting services" sonrası retry/rollback olarak görülür). Düz
+> `net8.0` yalnızca `Microsoft.NETCore.App` gerektirir; bu her .NET 8 kurulumunda
+> bulunur. (WPF uygulaması ise WPF için `net8.0-windows` + Desktop runtime'a
+> ihtiyaç duyar; MSI'daki LaunchCondition bunu kontrol eder.)
 
 > **Önemli — neden Task Manager'da parola SORULMUYOR?**
 > Task Manager'ın "End task" işlemi çekirdek düzeyinde `TerminateProcess` çağırır;

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace MyApp.Service;
 
@@ -18,6 +19,7 @@ namespace MyApp.Service;
 /// NOT: Bu bir CAYDIRICI korumadır, kernel düzeyi değildir. Kararlı bir admin
 /// DACL'i geri değiştirip yine de sonlandırabilir.
 /// </summary>
+[SupportedOSPlatform("windows")]
 internal static class ProcessProtection
 {
     private const uint PROCESS_TERMINATE = 0x0001;

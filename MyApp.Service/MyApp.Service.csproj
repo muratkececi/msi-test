@@ -1,15 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- DÜZ net8.0 (net8.0-windows DEĞİL). Bu service yalnızca P/Invoke ile
+         Windows API çağırır; WPF/WinForms kullanmaz. net8.0-windows kullanmak,
+         runtimeconfig.json'a 'Microsoft.WindowsDesktop.App' bağımlılığı ekler ve
+         service SCM tarafından başlatılırken Desktop runtime aranıp bulunamazsa
+         süreç managed kod hiç çalışmadan çöker (service başlatılamaz). Düz net8.0
+         yalnızca Microsoft.NETCore.App gerektirir; bu da her .NET 8 kurulumunda
+         vardır. -->
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>MyApp.Service</AssemblyName>
     <OutputType>Exe</OutputType>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
 
-    <!-- Framework-dependent (MyApp ile tutarlı). Hedef makinede .NET 8 Runtime
-         zaten kuruluysa service de çalışır. -->
+    <!-- Framework-dependent. Hedef makinede .NET 8 (NETCore.App) Runtime
+         kuruluysa service çalışır. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
   </PropertyGroup>
