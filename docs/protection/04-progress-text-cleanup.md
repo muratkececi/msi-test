@@ -22,13 +22,21 @@ token'sız bir `<ProgressText ... Template="...">` satırı eklemek.
 **Kaynak 2 — PrepareDlg'in ActionData kontrolü ("File: [1]").** WixUI'nin **PrepareDlg**
 diyaloğunda, `ActionData` olayına abone bir Text kontrolü vardır. ActionData'nın
 ActionText gibi bir şablonu yoktur; motor ham veriyi `File: [1]` biçiminde basar.
-ActionText satırlarını düzeltmek bunu KALDIRMAZ (çünkü kaynak ActionText değil).
-Çözüm: PrepareDlg'i, WixUI'nin standart tanımıyla aynı ama **ActionData Control'ü
-çıkarılmış** kendi sürümünle override etmek. (NOT: ProgressDlg yalnızca ActionText'e
-abonedir, sorun PrepareDlg'dedir — EventMapping tablosunu dökerek doğrula.)
+ActionText satırlarını düzeltmek bunu KALDIRMAZ (kaynak ActionText değil). (NOT:
+ProgressDlg yalnızca ActionText'e abonedir, sorun PrepareDlg'dedir — EventMapping
+tablosunu dökerek doğrula.)
+
+> ⚠️ **Kaynak 2'nin çözümü ZOR.** `ui:WixUI` (örn. WixUI_InstallDir) kullanırken
+> aynı Id ile `<Dialog Id="PrepareDlg">` yeniden tanımLANAMAZ — WiX "Duplicate Control
+> ... PrepareDlg/..." hatası verir; extension'ın dialog'unu Id ile ezemezsin. Tek
+> temiz yol `ui:WixUI`'yi BIRAKIP tüm WixUI_InstallDir dialog setini (tüm dialog'lar +
+> InstallUISequence + publish'ler) elle inline etmek ve içine ActionData kontrolü
+> çıkarılmış kendi PrepareDlg'ini koymaktır — yani tek bir PrepareDlg tanımı olur.
+> Bu invaziv ve kırılgandır; "File: [1]" tamamen kozmetik olduğundan bu projede
+> KASITLI olarak yapılmadı, bilinen sınır olarak bırakıldı.
 
 > Kaynak 1'in en görünür örneği `InstallFiles`'tır; Kaynak 2 ise install VE repair
-> sırasında "File: [1]" olarak görünen kalıcı token'dır.
+> sırasında "File: [1]" olarak görünen, ActionText ile gitmeyen kalıcı token'dır.
 
 ## Prompt
 
@@ -60,14 +68,16 @@ DÜZELT:
     <ProgressText Action="InstallFiles" Message="Copying files" Template="Copying application files" />
   Hem Message (= ActionText.Description) hem Template (= ActionText.Template) token'sız
   olsun. ÖNEMLİ: ekrandaki token'ları üreten Template sütunudur; sadece Message yetmez.
-- KAYNAK 2 için: WixUI'nin PrepareDlg'ini override et. Standart PrepareDlg tanımının
-  AYNISINI yaz (aynı Id/boyut/loc string'leri — WiX kaynağından kopyala) ama
-  "ActionData" olayına abone <Control>'ü ÇIKAR. Aynı Id'li Dialog, extension'ınkini
-  ezer. Böylece "File: [1]" hiç render edilmez. (PrepareDlg kaynağı:
-  github.com/wixtoolset/wix → src/ext/UI/wixlib/PrepareDlg.wxs)
+- KAYNAK 2 için (zor, opsiyonel): "File: [1]" PrepareDlg'in ActionData kontrolünden
+  gelir. DİKKAT: `ui:WixUI` kullanırken aynı Id ile <Dialog Id="PrepareDlg"> yeniden
+  TANIMLANAMAZ — WiX "Duplicate Control" hatası verir. Tek temiz yol `ui:WixUI`'yi
+  bırakıp tüm WixUI_InstallDir dialog setini elle inline etmek (kaynak:
+  github.com/wixtoolset/wix → src/ext/UI/wixlib/) ve içine ActionData kontrolü
+  çıkarılmış PrepareDlg koymaktır. Invaziv/kırılgan; "File: [1]" tamamen kozmetik
+  olduğundan çoğu projede bunu YAPMAMAK ve bilinen sınır olarak bırakmak makuldür.
 - Doğrula: yeniden derle; `msiinfo export <msi> ActionText` → hiçbir Template'te token
-  ('[') kalmasın; `msiinfo export <msi> EventMapping` → PrepareDlg'in ActionData satırı
-  kalmasın. Gerçek kurulum + onarım (repair) ile gözle de doğrula.
+  ('[') kalmasın. Kaynak 2'yi (PrepareDlg ActionData) çözmediysen "File: [1]" install
+  ve repair'de görünmeye devam eder — bu bilinçli bir karar olabilir.
 - DİKKAT: extension CA adları sürüme/bitness'e bağlıdır (Wix4SchedServiceConfig_X64
   vs _X86). Adı build çıktısından doğrula; tanımsız aksiyona ProgressText
   derlemeyi "undefined symbol" ile patlatabilir.
@@ -107,6 +117,6 @@ msiinfo export MyAppSetup.msi EventMapping | grep -i ActionData
 | İKİ kaynak var | ActionText.Template (Directory/Size) + PrepareDlg ActionData (File: [1]) |
 | `Template` attribute | ActionText token'larını üretir; Message (Description) değil |
 | Standart aksiyonların yerleşik şablonu | ActionText satırı yoksa motor token'lı varsayılanı gösterir |
-| PrepareDlg override | "File: [1]" ActionData'dan gelir; ActionText düzeltmesiyle gitmez |
+| "File: [1]" ayrı/zor | PrepareDlg ActionData'dan gelir; ui:WixUI ile override edilemez (duplicate), inline dialog seti gerekir |
 | Önce MSI'ı dök | Tahminle değil; ActionText + EventMapping tablolarıyla kanıtla bul |
 | Extension CA adını doğrula | `Wix4...` adları sürüm/bitness'e göre değişir; yanlışsa derleme patlar |
