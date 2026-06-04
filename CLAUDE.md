@@ -104,10 +104,12 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # triggers the Release
   app runs as the user, not the elevated installer. `WixShellExecTarget` is set to
   `[INSTALLFOLDER]MyApp.exe` (a path, not `[#FileId]`) because the files are harvested
   with `<Files>` and have no hand-authored File Id.
-- The leaking `File: [1]` on the install progress detail line comes from the WixUI
-  ProgressDlg's built-in ActionData behavior, NOT the ActionText table (verified by
-  dumping the MSI with msitools). ActionText overrides removed `Directory: [9]` /
-  `Size: [6]` but not `File: [1]`; fully removing it needs a custom ProgressDlg.
+- The leaking `File: [1]` on the install/repair progress line came from **PrepareDlg's
+  ActionData Text control** (subscribed to the ActionData event), NOT the ActionText
+  table and NOT ProgressDlg — verified by dumping the MSI's EventMapping table with
+  msitools. ActionText overrides removed `Directory: [9]` / `Size: [6]` but not
+  `File: [1]`. Fix: `Package.wxs` overrides `PrepareDlg` with the stock WiX v5 dialog
+  minus the ActionData `<Control>`, so no per-file `[1]` is rendered.
 - **WiX does not build on macOS/Linux** — the `Installer` project only compiles on
   Windows (CI). Don't treat WiX edits as verified until the CI build is green.
 
