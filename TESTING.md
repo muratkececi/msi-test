@@ -34,10 +34,13 @@ msiexec /i MyAppSetup.msi /l*v install.log
 ```
 
 - [ ] Kurulum sihirbazı açılıyor, klasör seçtirip tamamlanıyor.
-- [ ] `C:\Program Files\MyApp\` içinde şunlar var: `MyApp.exe`, `MyApp.dll`,
-      `MyApp.runtimeconfig.json`, `MyApp.deps.json` ve `MyApp.Service.exe` (+ yan dosyaları).
+- [ ] `C:\Program Files\MyApp\` içinde `MyApp.exe`, `MyApp.dll`,
+      `MyApp.runtimeconfig.json`, `MyApp.deps.json` (+ yan dosyaları) var; servis ise
+      `C:\Program Files\MyApp\Agent\MyApp.Service.exe` (+ yan dosyaları) altında.
+- [ ] Son sayfada **"Launch MyApp"** seçeneği işaretli; "Finish" deyince uygulama
+      otomatik açılıyor (yönetici/UAC istemeden, normal kullanıcı penceresi olarak).
 - [ ] Başlat menüsünde **MyApp** kısayolu var.
-- [ ] Kısayola tıklayınca "Merhaba 👋" penceresi açılıyor.
+- [ ] Kısayola tıklayınca "Hello 👋" penceresi açılıyor.
 
 ---
 

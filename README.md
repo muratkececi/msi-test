@@ -92,8 +92,11 @@ msi-test/
   dosyayı siler ve kendini temiz şekilde durdurur. Temiz durdurma SCM recovery'yi
   tetiklemez, yani servis kendiliğinden geri gelmez.
 - **"Start service"** butonu servisi `ServiceController` ile başlatır ve **parola
-  istemez** — STOP reddi yalnızca durdurmayı engeller, başlatmayı değil. Servis
-  yeniden başladığında korumaları tekrar uygular.
+  istemez**. Bunun çalışması için servis SDDL'ine Interactive kullanıcılar için bir
+  `SERVICE_START` (SDDL `RP`) **izin** ACE'si de eklenir (`(A;;RPLCRC;;;IU)`); aksi
+  halde varsayılan servis güvenliği normal kullanıcıya START vermez ve
+  "Cannot open service" hatası alınır. STOP yine reddedilir, sadece START açılır.
+  Servis yeniden başladığında korumaları tekrar uygular.
 - Parola doğrulaması ileride bir API'ye taşınacak şekilde tek bir metotta tutulur
   (`ValidatePassword`).
 
@@ -150,6 +153,9 @@ Installer\bin\Release\MyAppSetup.msi
 > `v*` etiketli bir push'ta MSI ayrıca bir GitHub Release'e eklenir.
 
 ## Hızlı test
+
+Kurulum sihirbazının son sayfasında **"Launch MyApp"** seçeneği (varsayılan
+işaretli) bulunur; "Finish" deyince uygulama kullanıcı bağlamında otomatik açılır.
 
 ```powershell
 # Kurulum (çift tık da olur) — service de kurulur ve başlar

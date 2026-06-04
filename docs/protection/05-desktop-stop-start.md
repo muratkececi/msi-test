@@ -38,8 +38,14 @@ DURDURMA (master parola ister):
   beklesin ve sonucu kullanıcıya göstersin.
 
 BAŞLATMA (parola istemez):
-- "Servisi başlat" butonu doğrudan ServiceController.Start() ile başlatsın. Deny ACE
-  yalnızca STOP'u engellediği için START Interactive kullanıcıya açıktır; UAC gerekmez.
+- "Servisi başlat" butonu doğrudan ServiceController.Start() ile başlatsın.
+- ÖNEMLİ: Bir servisin VARSAYILAN DACL'i Interactive kullanıcılara SERVICE_START
+  vermez; bu yüzden normal kullanıcının ServiceController.Start() çağrısı
+  "Cannot open '<service>' service" hatası verir. Çözüm: STOP korumasını eklerken
+  (Adım 3) servis SDDL'ine Interactive için bir ALLOW ACE de ekle:
+  (A;;RPLCRC;;;IU) — RP=SERVICE_START, LC=QUERY_STATUS, RC=READ_CONTROL.
+  Böylece kullanıcı UAC olmadan başlatabilir; WP (STOP) vermediğimiz için durdurma
+  yine engellidir. (Deny ACE'ler DACL'in başında, bu allow ACE allow'lar arasında.)
 - Başlatmadan önce varsa eski stop.request dosyasını sil (yoksa service açılır açılmaz
   tekrar durur). Service yeniden başladığında STOP korumasını tekrar uygular (Adım 3).
 
@@ -70,6 +76,7 @@ KURALLAR:
 | Kontrol dosyası ile self-stop | WPF, SERVICE_STOP reddi yüzünden doğrudan durduramaz |
 | Service kendi AllowStop'unu çağırır | Yalnızca SYSTEM olan service kendi SDDL'ini değiştirebilir |
 | Temiz kapanış | SCM recovery'yi tetiklemez → service istenmeden geri gelmez |
-| Start parola istemez | Deny ACE yalnızca STOP (`WP`); START (`RP`) serbest |
+| Start parola istemez | STOP'u (`WP`) reddederiz, START'a (`RP`) izin veririz |
+| START için allow ACE şart | Varsayılan servis DACL'i Interactive'e START vermez → "Cannot open service" |
 | Start'tan önce stop.request sil | Bayat istek dosyası servisi anında tekrar durdurur |
 | Doğrulamayı tek metotta tut | İleride API'ye geçişi tek noktadan yapmak için |

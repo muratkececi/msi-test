@@ -27,7 +27,9 @@ A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
    check (same hash as uninstall). Since the app can't `sc stop` a protected service, it
    drops a `stop.request` control file under `ProgramData`; the SYSTEM service polls for
    it, lifts its own deny ACE, and self-stops (`ServiceControlClient.cs` ↔ `AgentWorker`).
-   Start is not password-gated (the deny ACE blocks only STOP, not START).
+   Start is not password-gated, but a service's default DACL denies SERVICE_START to
+   interactive users, so `ServiceProtection` also adds an allow ACE `(A;;RPLCRC;;;IU)`
+   (START/QUERY) — without it `ServiceController.Start()` fails with "Cannot open service".
 
 > A password CANNOT be prompted on Task Manager "End task" — the kernel calls
 > `TerminateProcess` and no app code runs. Passwords only gate paths the app
@@ -98,6 +100,14 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # triggers the Release
   (`useLegacyV2RuntimeActivationPolicy`) or it fails to load the CLR (1603 / 0x80131700).
 - `Package.wxs` uses `Codepage="65001"` (UTF-8) for message text.
 - `InstallerPlatform=x64` is required (components live under `ProgramFiles64Folder`).
+- Launch-after-install uses WixUtil `WixShellExec` with `Impersonate="yes"` so the
+  app runs as the user, not the elevated installer. `WixShellExecTarget` is set to
+  `[INSTALLFOLDER]MyApp.exe` (a path, not `[#FileId]`) because the files are harvested
+  with `<Files>` and have no hand-authored File Id.
+- The leaking `File: [1]` on the install progress detail line comes from the WixUI
+  ProgressDlg's built-in ActionData behavior, NOT the ActionText table (verified by
+  dumping the MSI with msitools). ActionText overrides removed `Directory: [9]` /
+  `Size: [6]` but not `File: [1]`; fully removing it needs a custom ProgressDlg.
 - **WiX does not build on macOS/Linux** — the `Installer` project only compiles on
   Windows (CI). Don't treat WiX edits as verified until the CI build is green.
 

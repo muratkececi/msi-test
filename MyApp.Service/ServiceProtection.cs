@@ -28,6 +28,14 @@ internal static class ServiceProtection
     // allow ACEs in the DACL, so this is inserted right after the "D:" prefix.
     private const string DenyStopAce = "(D;;WP;;;IU)";
 
+    // Allow Interactive users (IU) to START, QUERY and read the service:
+    // RP=SERVICE_START, LC=SERVICE_QUERY_STATUS, RC=READ_CONTROL.
+    // A standard service's default DACL does NOT grant SERVICE_START to interactive
+    // users, so the desktop app's ServiceController.Start() fails with
+    // "Cannot open 'MyAppAgent' service". Granting RP (but NOT WP) lets a normal
+    // user start the service without elevation while STOP stays password-gated.
+    private const string AllowStartAce = "(A;;RPLCRC;;;IU)";
+
     /// <summary>
     /// The exact command an admin can run to REMOVE this protection later by
     /// stripping the deny ACE. Logged so it is discoverable from agent.log.
@@ -47,24 +55,32 @@ internal static class ServiceProtection
         // sdshow output is an SDDL string like "D:(A;;...)...S:(...)".
         string sddl = current.Trim();
 
-        // Already protected? Don't add the deny ACE twice.
+        // Already protected? Don't add our ACEs twice.
         if (sddl.Contains(DenyStopAce, StringComparison.OrdinalIgnoreCase))
             return;
 
-        // Insert the deny ACE at the very start of the DACL (right after "D:").
+        // Locate the DACL ("D:") and the start of the security ACL ("S:"), if any.
         int daclIndex = sddl.IndexOf("D:", StringComparison.Ordinal);
         if (daclIndex < 0)
             throw new InvalidOperationException("Unexpected SDDL: no DACL (D:) section found.");
 
-        // Skip flags that may follow "D:" (e.g. "D:PAI(...)"): insert after any
-        // flag characters but before the first ACE "(".
-        int insertAt = daclIndex + 2;
-        while (insertAt < sddl.Length && sddl[insertAt] != '(' && sddl[insertAt] != 'S')
-            insertAt++;
+        // The deny ACE must come FIRST in the DACL (deny ACEs precede allow ACEs).
+        // Skip any flag characters after "D:" (e.g. "D:PAI(...)") up to the first ACE.
+        int denyAt = daclIndex + 2;
+        while (denyAt < sddl.Length && sddl[denyAt] != '(' && sddl[denyAt] != 'S')
+            denyAt++;
+        string updated = sddl.Insert(denyAt, DenyStopAce);
 
-        string updated = sddl.Insert(insertAt, DenyStopAce);
+        // The allow-start ACE can go at the end of the DACL, i.e. just before the
+        // SACL ("S:") if present, otherwise at the end of the string. Order among
+        // allow ACEs does not matter.
+        int saclIndex = updated.IndexOf("S:", denyAt, StringComparison.Ordinal);
+        if (saclIndex < 0)
+            updated += AllowStartAce;
+        else
+            updated = updated.Insert(saclIndex, AllowStartAce);
 
-        // sc sdset needs the SDDL quoted as a single argument.
+        // sc sdset needs the SDDL as a single argument.
         string result = RunSc($"sdset {serviceName} {updated}");
 
         // sc prints "[SC] SetServiceObjectSecurity SUCCESS" on success.

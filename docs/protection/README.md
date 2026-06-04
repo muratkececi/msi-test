@@ -12,6 +12,7 @@ uygula; her dosya tek bir yetenek ekler.
 | 3 | [03-services-stop-protection.md](03-services-stop-protection.md) | services.msc / `sc stop` ile durdurmayı engelleme (service SDDL) |
 | 4 | [04-progress-text-cleanup.md](04-progress-text-cleanup.md) | Kurulumdaki ham `[1] [2] [9] [6]` metnini temizleme (InstallFiles vb.) |
 | 5 | [05-desktop-stop-start.md](05-desktop-stop-start.md) | Masaüstü uygulamasından servisi durdurma (master parola) / başlatma |
+| 6 | [06-launch-app-after-install.md](06-launch-app-after-install.md) | Kurulum sonrası uygulamayı otomatik başlatma |
 
 ## Nasıl kullanılır
 
