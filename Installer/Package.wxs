@@ -5,7 +5,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.8"
+           Version="1.0.9"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -214,17 +214,33 @@
          defining the Property manually as well would cause a conflict. -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
-    <!-- Override the built-in progress text of the service-related standard
-         actions. The raw "Service: [1] [2]" that leaks onto the progress dialog
-         comes from the ActionText *Template* column (the detail line), NOT the
-         Description. So the Template attribute is what kills the [1]/[2] tokens;
-         Message only sets the heading. We set Template to a plain token-free
-         string for each service action. -->
+    <!-- Give every action that runs during install/uninstall an explicit
+         ActionText row with a token-free message. Inspecting the built MSI showed
+         the leaking "[1] [2]" did NOT come from InstallServices (we already
+         overrode it) but from actions that had NO ActionText row of their own:
+         our deferred custom actions (StartAgentService, UnprotectAgentService)
+         and the WixUtil service-config custom action. When an action has no
+         ActionText row, Windows Installer shows a built-in default template that
+         can contain [1]/[2]. Adding a clean row for each kills it.
+         Message = the line shown above the progress bar (Description column),
+         Template = the detail line (Template column); both kept token-free. -->
     <UI>
       <ProgressText Action="InstallServices" Message="Background service" Template="Configuring the background service" />
       <ProgressText Action="StartServices"   Message="Background service" Template="Starting the background service" />
       <ProgressText Action="StopServices"    Message="Background service" Template="Stopping the background service" />
       <ProgressText Action="DeleteServices"  Message="Background service" Template="Removing the background service" />
+
+      <!-- Our own custom actions. -->
+      <ProgressText Action="StartAgentService"     Message="Starting background service" Template="Starting background service" />
+      <ProgressText Action="UnprotectAgentService" Message="Preparing background service for removal" Template="Preparing background service for removal" />
+      <ProgressText Action="CheckUninstallPassword" Message="Verifying uninstall password" Template="Verifying uninstall password" />
+
+      <!-- WixUtil's service-config custom actions (recovery settings). Their
+           default progress template is the most likely source of the raw
+           "[1] [2]" because they run right after InstallServices and ship no
+           ActionText row. The X64 suffix matches the InstallerPlatform=x64 build. -->
+      <ProgressText Action="Wix4SchedServiceConfig_X64" Message="Configuring service recovery" Template="Configuring service recovery" />
+      <ProgressText Action="Wix4ExecServiceConfig_X64"  Message="Configuring service recovery" Template="Configuring service recovery" />
     </UI>
 
   </Package>
