@@ -5,7 +5,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.6"
+           Version="1.0.7"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -16,35 +16,34 @@
     <!-- Tek bir MSI dosyasında gömülü cab -->
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- ============ DOSYALAR ============ -->
-    <!-- Framework-dependent publish çıktısındaki tüm dosyalar:
-         MyApp.exe + MyApp.dll + MyApp.runtimeconfig.json + MyApp.deps.json.
-         $(var.PublishDir) Installer.wixproj içinde tanımlı. -->
+    <!-- ============ FILES ============ -->
+    <!-- Harvest the whole publish output instead of listing files one by one.
+         A framework-dependent .NET 9 publish contains, besides
+         exe/dll/runtimeconfig/deps, all the NuGet dependency DLLs (e.g.
+         Microsoft.Extensions.Hosting.dll). Listing them by hand was error-prone:
+         a single missing DLL crashed the service with
+         "FileNotFoundException: Microsoft.Extensions.Hosting" so it never started.
+         <Files> turns every file in the publish folder into a component
+         automatically, so dependencies are always complete.
+         $(var.PublishDir) / $(var.ServicePublishDir) are defined in Installer.wixproj. -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="MyApp">
-        <Component Id="MyAppExe" Guid="*">
-          <File Id="MyAppExe"
-                Source="$(var.PublishDir)MyApp.exe"
-                KeyPath="yes" />
-        </Component>
-        <Component Id="MyAppDll" Guid="*">
-          <File Source="$(var.PublishDir)MyApp.dll" KeyPath="yes" />
-        </Component>
-        <Component Id="MyAppRuntimeConfig" Guid="*">
-          <File Source="$(var.PublishDir)MyApp.runtimeconfig.json" KeyPath="yes" />
-        </Component>
-        <Component Id="MyAppDepsJson" Guid="*">
-          <File Source="$(var.PublishDir)MyApp.deps.json" KeyPath="yes" />
-        </Component>
 
-        <!-- ===== ARKA PLAN AJAN SERVICE'İ ===== -->
-        <!-- Service exe + yan dosyaları, ServiceInstall + recovery ile. -->
-        <Component Id="AgentServiceExe" Guid="*">
-          <File Id="AgentServiceExe"
-                Source="$(var.ServicePublishDir)MyApp.Service.exe"
-                KeyPath="yes" />
+        <!-- The service lives in its own subfolder (Agent\) so the WPF and service
+             publish outputs don't land in the same folder; this avoids collisions
+             between identically-named DLLs from the two framework-dependent
+             publishes (e.g. some Microsoft.*.dll). -->
+        <Directory Id="AGENTFOLDER" Name="Agent">
 
-          <!-- Service'i SYSTEM altında, otomatik başlatma ile kur. -->
+          <!-- ===== BACKGROUND AGENT SERVICE ===== -->
+          <!-- Service exe as a hand-authored component carrying ServiceInstall +
+               recovery. Its dependency DLLs come from the <Files> group below. -->
+          <Component Id="AgentServiceExe" Guid="*">
+            <File Id="AgentServiceExe"
+                  Source="$(var.ServicePublishDir)MyApp.Service.exe"
+                  KeyPath="yes" />
+
+          <!-- Install the service under SYSTEM with automatic start. -->
           <ServiceInstall Id="AgentServiceInstall"
                           Name="MyAppAgent"
                           DisplayName="MyApp Agent"
@@ -54,8 +53,8 @@
                           ErrorControl="normal"
                           Account="LocalSystem"
                           Vital="no">
-            <!-- Öldürülürse SCM yeniden başlatsın: ilk/ikinci/sonraki hatalarda
-                 5 sn sonra restart; sayaç 1 günde sıfırlanır. -->
+            <!-- If killed, let SCM restart it: on first/second/subsequent
+                 failures restart after 5s; the counter resets after 1 day. -->
             <util:ServiceConfig FirstFailureActionType="restart"
                                 SecondFailureActionType="restart"
                                 ThirdFailureActionType="restart"
@@ -63,31 +62,42 @@
                                 ResetPeriodInDays="1" />
           </ServiceInstall>
 
-          <!-- Kaldırmada durdur ve sil. KURULUMDA BAŞLATMA YOK (Start yok):
-               MSI'ın StartServices aksiyonu, service başlamazsa "Service failed
-               to start ... Retry/Ignore" diyaloğunu HER ZAMAN gösterir ve bunu
-               bastırmanın MSI/WiX yolu yoktur (Wait="no" bunu engellemez). Ayrıca
-               "[1]" progress metni de buradan geliyordu. Bunun yerine service'i
-               kurulum bittikten SONRA, sessiz bir custom action ile başlatıyoruz
-               (StartAgentService) — başlamazsa kurulumu bozmaz. -->
+          <!-- Stop and remove on uninstall. NO START ON INSTALL (no Start attr):
+               MSI's StartServices action ALWAYS shows the "Service failed to
+               start ... Retry/Ignore" dialog when the service won't start, and
+               there is no MSI/WiX way to suppress it (Wait="no" does not). The
+               "[1]" progress text also came from here. Instead we start the
+               service AFTER install via a silent custom action (StartAgentService)
+               — if it fails to start, the install is not broken. -->
           <ServiceControl Id="AgentServiceControl"
                           Name="MyAppAgent"
                           Stop="both"
                           Remove="uninstall"
                           Wait="no" />
-        </Component>
-
-        <Component Id="AgentServiceDll" Guid="*">
-          <File Source="$(var.ServicePublishDir)MyApp.Service.dll" KeyPath="yes" />
-        </Component>
-        <Component Id="AgentServiceRuntimeConfig" Guid="*">
-          <File Source="$(var.ServicePublishDir)MyApp.Service.runtimeconfig.json" KeyPath="yes" />
-        </Component>
-        <Component Id="AgentServiceDepsJson" Guid="*">
-          <File Source="$(var.ServicePublishDir)MyApp.Service.deps.json" KeyPath="yes" />
-        </Component>
+          </Component>
+        </Directory>
       </Directory>
     </StandardDirectory>
+
+    <!-- ComponentGroups that harvest the publish outputs in bulk.
+         <Files> turns every file into a component automatically; we give the
+         ComponentGroup an explicit Id so the Feature can reference it
+         deterministically (a naked <Files>' auto-generated group Id is not
+         predictable). WPF goes to the root folder (INSTALLFOLDER), the service
+         to the Agent\ subfolder. -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <!-- The WPF app's full publish output (exe + all dependencies). -->
+      <Files Include="$(var.PublishDir)**" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="AgentFiles" Directory="AGENTFOLDER">
+      <!-- The service's full publish output; only MyApp.Service.exe is excluded
+           (we hand-authored it above with ServiceInstall, otherwise the same file
+           would be defined twice). All other DLLs come from here. -->
+      <Files Include="$(var.ServicePublishDir)**">
+        <Exclude Files="$(var.ServicePublishDir)MyApp.Service.exe" />
+      </Files>
+    </ComponentGroup>
 
     <!-- Başlat menüsü kısayolu -->
     <StandardDirectory Id="ProgramMenuFolder">
@@ -109,14 +119,12 @@
     </StandardDirectory>
 
     <Feature Id="Main" Title="MyApp" Level="1">
-      <ComponentRef Id="MyAppExe" />
-      <ComponentRef Id="MyAppDll" />
-      <ComponentRef Id="MyAppRuntimeConfig" />
-      <ComponentRef Id="MyAppDepsJson" />
+      <!-- All WPF app files (INSTALLFOLDER) -->
+      <ComponentGroupRef Id="AppFiles" />
+      <!-- Service dependency DLLs (Agent\) -->
+      <ComponentGroupRef Id="AgentFiles" />
+      <!-- Hand-authored service exe component carrying ServiceInstall -->
       <ComponentRef Id="AgentServiceExe" />
-      <ComponentRef Id="AgentServiceDll" />
-      <ComponentRef Id="AgentServiceRuntimeConfig" />
-      <ComponentRef Id="AgentServiceDepsJson" />
       <ComponentRef Id="AppShortcut" />
     </Feature>
 
@@ -180,10 +188,22 @@
               Condition="NOT REMOVE" />
     </InstallExecuteSequence>
 
-    <!-- ============ KURULUM ARAYÜZÜ ============ -->
-    <!-- InstallDirectory niteliği WIXUI_INSTALLDIR'i kendisi ayarlar;
-         ayrıca elle Property tanımlamak çakışmaya yol açar. -->
+    <!-- ============ INSTALL UI ============ -->
+    <!-- The InstallDirectory attribute sets WIXUI_INSTALLDIR itself;
+         defining the Property manually as well would cause a conflict. -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <!-- Override the built-in progress text of the service-related standard
+         actions. Their default templates contain [1]/[2] tokens that Windows
+         Installer does not always fill, so the raw "Service: [1] [2]" text
+         leaks onto the progress dialog during install. Replacing them with
+         plain strings removes that cosmetic glitch. -->
+    <UI>
+      <ProgressText Action="InstallServices">Registering background service...</ProgressText>
+      <ProgressText Action="StartServices">Starting background service...</ProgressText>
+      <ProgressText Action="StopServices">Stopping background service...</ProgressText>
+      <ProgressText Action="DeleteServices">Removing background service...</ProgressText>
+    </UI>
 
   </Package>
 </Wix>
