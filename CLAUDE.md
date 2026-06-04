@@ -23,6 +23,11 @@ A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
    - services.msc / `sc stop` → the service DACL denies `SERVICE_STOP` (SDDL `WP`) to
      Interactive users (`ServiceProtection.cs`). A `--unprotect` maintenance mode and an
      uninstall-time custom action strip that ACE so removal is never blocked.
+3. **App-controlled stop/start** — the WPF app stops the service after a master-password
+   check (same hash as uninstall). Since the app can't `sc stop` a protected service, it
+   drops a `stop.request` control file under `ProgramData`; the SYSTEM service polls for
+   it, lifts its own deny ACE, and self-stops (`ServiceControlClient.cs` ↔ `AgentWorker`).
+   Start is not password-gated (the deny ACE blocks only STOP, not START).
 
 > A password CANNOT be prompted on Task Manager "End task" — the kernel calls
 > `TerminateProcess` and no app code runs. Passwords only gate paths the app
@@ -33,7 +38,7 @@ A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
 
 | Project | TFM | Role |
 |---|---|---|
-| `MyApp/` | `net9.0-windows` | WPF app (framework-dependent) |
+| `MyApp/` | `net9.0-windows` | WPF app (framework-dependent); stop/start the service after a password check (`ServiceControlClient.cs`) |
 | `MyApp.Service/` | `net9.0` | Worker service "MyAppAgent"; kill protection (`ProcessProtection.cs`) + stop protection (`ServiceProtection.cs`) |
 | `UninstallGuard/` | `net472` | WiX DTF managed custom action; password prompt (`CustomActions.cs`) |
 | `Installer/` | WiX 5 (`WixToolset.Sdk/5.0.2`) | MSI that packages everything (`Package.wxs`) |
@@ -104,8 +109,8 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # triggers the Release
 - `docs/PROTECTION-PROMPT.md` — single combined prompt to port the protection layers
   into another project.
 - `docs/protection/` — the same prompt split into per-step files (uninstall password,
-  Task Manager protection, services.msc protection, progress-text cleanup) to apply
-  one at a time.
+  Task Manager protection, services.msc protection, progress-text cleanup, app-driven
+  stop/start) to apply one at a time.
 
 ## Security note (public repo)
 

@@ -1,17 +1,29 @@
 <Window x:Class="MyApp.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MyApp" Height="220" Width="420"
+        Title="MyApp" Height="300" Width="440"
         WindowStartupLocation="CenterScreen">
-    <Grid>
+    <Grid Margin="20">
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock Text="Merhaba 👋"
+            <TextBlock Text="Hello 👋"
                        FontSize="28" FontWeight="Bold"
-                       HorizontalAlignment="Center" Margin="0,0,0,10"/>
-            <TextBlock Text="Bu, MSI ile kurulan örnek uygulamadır."
-                       FontSize="14" HorizontalAlignment="Center"/>
-            <Button Content="Kapat" Width="100" Margin="0,20,0,0"
-                    Click="Close_Click"/>
+                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+            <TextBlock Text="This is the sample application installed by the MSI."
+                       FontSize="13" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+
+            <TextBlock x:Name="ServiceStatusText"
+                       Text="Service status: unknown"
+                       FontSize="13" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="StopServiceButton" Content="Stop service"
+                        Width="120" Margin="0,0,8,0" Click="StopService_Click"/>
+                <Button x:Name="StartServiceButton" Content="Start service"
+                        Width="120" Click="StartService_Click"/>
+            </StackPanel>
+
+            <Button Content="Close" Width="100" Margin="0,20,0,0"
+                    HorizontalAlignment="Center" Click="Close_Click"/>
         </StackPanel>
     </Grid>
 </Window>

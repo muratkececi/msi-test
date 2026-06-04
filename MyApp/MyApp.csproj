@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AssemblyName>MyApp</AssemblyName>
-    <Version>1.0.9</Version>
+    <Version>1.1.0</Version>
 
     <!-- Framework-dependent yayın: runtime gömülmez, MSI küçük kalır (~1-2 MB).
          Hedef makinede .NET 9 Desktop Runtime kurulu olmalı; MSI bunu bir
@@ -16,5 +16,10 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ServiceController (stop/start the agent) lives in this package on .NET. -->
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.0" />
+  </ItemGroup>
 
 </Project>

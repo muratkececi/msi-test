@@ -4,18 +4,23 @@ Basit bir WPF uygulaması ve onu kuran bir MSI. İki koruma katmanı vardır:
 
 1. **Kaldırma koruması (uninstall):** Kullanıcı uygulamayı kaldırmak istediğinde
    master parola sorulur; yanlışsa kaldırma iptal edilir.
-2. **Durdurma koruması (Task Manager):** Birlikte kurulan bir Windows **service**
-   (arka plan ajanı) SYSTEM altında çalışır ve Task Manager'dan "End task" ile
-   sonlandırılmaya karşı korunur; öldürülürse SCM tarafından otomatik yeniden
-   başlatılır.
+2. **Durdurma koruması (Task Manager + services.msc):** Birlikte kurulan bir
+   Windows **service** (arka plan ajanı) SYSTEM altında çalışır. Task Manager'dan
+   "End task" ile sonlandırılmaya karşı korunur (öldürülürse SCM otomatik yeniden
+   başlatır) ve `services.msc` / `sc stop` ile durdurulmaya karşı korunur.
+3. **Uygulamadan kontrollü durdurma:** Masaüstü uygulaması, **master parola**
+   (uninstall ile aynı) doğrulayarak servisi düzgünce durdurabilir; ayrıca tekrar
+   başlatabilir (başlatma parola istemez).
 
 ## Proje yapısı
 
 ```
 msi-test/
 ├── MyApp/            → WPF uygulaması (.NET 9, framework-dependent)
+│                       servisi durdur/başlat + master parola (ServiceControlClient.cs)
 ├── MyApp.Service/    → Arka plan ajanı / Windows service (.NET 9 Worker)
-│                       süreç sonlandırma koruması (DACL) burada
+│                       process kill koruması (ProcessProtection.cs) +
+│                       services.msc stop koruması (ServiceProtection.cs)
 ├── UninstallGuard/   → Parola soran WiX custom action (.NET Framework 4.7.2)
 └── Installer/        → WiX 5 MSI projesi (her şeyi paketler)
 ```
@@ -75,6 +80,22 @@ msi-test/
   to start … Retry/Ignore" diyaloğunu her zaman gösterir ve bunu bastırmanın MSI
   yolu yoktur. Custom action `Return="ignore"` ile başarısızlığı yok sayar; service
   zaten `Start="auto"` olduğu için en geç bir sonraki açılışta da çalışır.
+
+### 3) Uygulamadan kontrollü durdurma / başlatma — master parola
+
+- WPF uygulamasındaki **"Stop service"** butonu master parola sorar (uninstall ile
+  aynı; `MyApp/ServiceControlClient.cs` içindeki SHA-256 hash). Doğruysa servisi
+  düzgünce durdurur.
+- Servis `SERVICE_STOP` reddi uyguladığı için uygulama doğrudan `sc stop` yapamaz.
+  Bunun yerine `C:\ProgramData\MyApp\stop.request` adlı bir **kontrol dosyası**
+  yazar; SYSTEM altındaki servis bu dosyayı görünce kendi STOP reddini kaldırır,
+  dosyayı siler ve kendini temiz şekilde durdurur. Temiz durdurma SCM recovery'yi
+  tetiklemez, yani servis kendiliğinden geri gelmez.
+- **"Start service"** butonu servisi `ServiceController` ile başlatır ve **parola
+  istemez** — STOP reddi yalnızca durdurmayı engeller, başlatmayı değil. Servis
+  yeniden başladığında korumaları tekrar uygular.
+- Parola doğrulaması ileride bir API'ye taşınacak şekilde tek bir metotta tutulur
+  (`ValidatePassword`).
 
 > **Service neden düz `net9.0` hedefler (`net9.0-windows` değil)?**
 > Service yalnızca P/Invoke ile Windows API'leri çağırır (WPF/WinForms kullanmaz).

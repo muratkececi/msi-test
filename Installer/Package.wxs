@@ -5,7 +5,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.0.9"
+           Version="1.1.0"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -167,13 +167,9 @@
          SYSTEM (starting a service requires privilege). Return="ignore" means
          if the service fails to start for any reason the install still SUCCEEDS;
          since Start="auto", it will run by the next boot at the latest. -->
-    <!-- TEMP DEBUG: the trailing `ping ... -n 3` adds a ~2s delay so the progress
-         text stays on screen long enough to read while we verify the [1] [2] fix.
-         REMOVE this delay (revert ExeCommand to just `sc start MyAppAgent`) once
-         confirmed. -->
     <CustomAction Id="StartAgentService"
                   Directory="INSTALLFOLDER"
-                  ExeCommand="[System64Folder]cmd.exe /c sc start MyAppAgent &amp; ping 127.0.0.1 -n 3 &gt; nul"
+                  ExeCommand="[System64Folder]cmd.exe /c sc start MyAppAgent"
                   Execute="deferred"
                   Impersonate="no"
                   Return="ignore" />
@@ -192,22 +188,7 @@
                   Impersonate="no"
                   Return="ignore" />
 
-    <!-- TEMP DEBUG: a do-nothing 2s delay scheduled right AFTER InstallServices so
-         the InstallServices / service-config progress text stays readable while we
-         verify the [1] [2] fix. REMOVE this action and its sequencing afterwards. -->
-    <CustomAction Id="DebugPauseAfterInstallServices"
-                  Directory="INSTALLFOLDER"
-                  ExeCommand="[System64Folder]cmd.exe /c ping 127.0.0.1 -n 3 &gt; nul"
-                  Execute="deferred"
-                  Impersonate="no"
-                  Return="ignore" />
-
     <InstallExecuteSequence>
-      <!-- TEMP DEBUG: see CustomAction above. Runs only on install/repair. -->
-      <Custom Action="DebugPauseAfterInstallServices"
-              After="InstallServices"
-              Condition="NOT REMOVE" />
-
       <!-- Run only during UNINSTALL (not install/repair/upgrade). Before
            InstallValidate, i.e. it prompts before any files are removed. On a
            wrong password, Return="check" cancels the entire uninstall. -->
@@ -235,16 +216,40 @@
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
     <!-- Give every action that runs during install/uninstall an explicit
-         ActionText row with a token-free message. Inspecting the built MSI showed
-         the leaking "[1] [2]" did NOT come from InstallServices (we already
-         overrode it) but from actions that had NO ActionText row of their own:
-         our deferred custom actions (StartAgentService, UnprotectAgentService)
-         and the WixUtil service-config custom action. When an action has no
-         ActionText row, Windows Installer shows a built-in default template that
-         can contain [1]/[2]. Adding a clean row for each kills it.
-         Message = the line shown above the progress bar (Description column),
+         ActionText row with a token-free message. Inspecting the built MSI (and a
+         screenshot) showed the leaking tokens did NOT come from InstallServices
+         but from STANDARD actions that ship a default template with tokens and had
+         no override here — most visibly InstallFiles ("Copying new files
+         File: [1], Directory: [9], Size: [6]"), plus RemoveFiles and the registry
+         actions. When an action's template contains tokens, Windows Installer
+         fills and shows them; overriding the Template with a token-free string
+         removes the raw "[1]"/"[9]"/"[6]" text.
+         Message = the line above the progress bar (Description column),
          Template = the detail line (Template column); both kept token-free. -->
     <UI>
+      <!-- Standard actions that run during install/uninstall and ship a default
+           template with tokens. Verified against the built MSI's
+           InstallExecuteSequence: these are every sequenced standard action that
+           had no ActionText row, so each could leak its built-in "[1]"/"[9]"/...
+           template. Every Template below is token-free. -->
+      <ProgressText Action="InstallFiles"           Message="Copying files"        Template="Copying application files" />
+      <ProgressText Action="RemoveFiles"            Message="Removing files"        Template="Removing application files" />
+      <ProgressText Action="CreateFolders"          Message="Creating folders"      Template="Creating folders" />
+      <ProgressText Action="RemoveFolders"          Message="Removing folders"      Template="Removing folders" />
+      <ProgressText Action="WriteRegistryValues"    Message="Writing registry"      Template="Writing registry values" />
+      <ProgressText Action="RemoveRegistryValues"   Message="Removing registry"     Template="Removing registry values" />
+      <ProgressText Action="CreateShortcuts"        Message="Creating shortcuts"    Template="Creating shortcuts" />
+      <ProgressText Action="RemoveShortcuts"        Message="Removing shortcuts"    Template="Removing shortcuts" />
+      <ProgressText Action="ProcessComponents"      Message="Updating components"   Template="Updating component registration" />
+      <ProgressText Action="RegisterProduct"        Message="Registering product"   Template="Registering product" />
+      <ProgressText Action="RegisterUser"           Message="Registering user"      Template="Registering user" />
+      <ProgressText Action="PublishProduct"         Message="Publishing product"    Template="Publishing product" />
+      <ProgressText Action="PublishFeatures"        Message="Publishing features"   Template="Publishing features" />
+      <ProgressText Action="UnpublishFeatures"      Message="Unpublishing features" Template="Unpublishing features" />
+      <ProgressText Action="RemoveExistingProducts" Message="Removing old version"  Template="Removing the previous version" />
+      <ProgressText Action="MigrateFeatureStates"   Message="Migrating settings"    Template="Migrating feature states" />
+
+      <!-- Service standard actions. -->
       <ProgressText Action="InstallServices" Message="Background service" Template="Configuring the background service" />
       <ProgressText Action="StartServices"   Message="Background service" Template="Starting the background service" />
       <ProgressText Action="StopServices"    Message="Background service" Template="Stopping the background service" />
@@ -254,8 +259,6 @@
       <ProgressText Action="StartAgentService"     Message="Starting background service" Template="Starting background service" />
       <ProgressText Action="UnprotectAgentService" Message="Preparing background service for removal" Template="Preparing background service for removal" />
       <ProgressText Action="CheckUninstallPassword" Message="Verifying uninstall password" Template="Verifying uninstall password" />
-      <!-- TEMP DEBUG action: give it a clean row too so IT doesn't show [1] [2]. -->
-      <ProgressText Action="DebugPauseAfterInstallServices" Message="Configuring background service" Template="Configuring background service" />
 
       <!-- WixUtil's service-config custom actions (recovery settings). Their
            default progress template is the most likely source of the raw

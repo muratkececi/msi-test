@@ -10,15 +10,21 @@ namespace MyApp.Service;
 public class AgentWorker : BackgroundService
 {
     private readonly ILogger<AgentWorker> _logger;
+    private readonly IHostApplicationLifetime _lifetime;
 
     // The service runs as SYSTEM, so ProgramData is writable and persistent.
     private static readonly string LogDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "MyApp");
     private static readonly string LogFile = Path.Combine(LogDir, "agent.log");
 
-    public AgentWorker(ILogger<AgentWorker> logger)
+    // The desktop app drops this file (after a master-password check) to ask the
+    // service to stop itself. Path must match MyApp/ServiceControlClient.cs.
+    private static readonly string StopRequestFile = Path.Combine(LogDir, "stop.request");
+
+    public AgentWorker(ILogger<AgentWorker> logger, IHostApplicationLifetime lifetime)
     {
         _logger = logger;
+        _lifetime = lifetime;
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)
@@ -60,17 +66,56 @@ public class AgentWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        int ticks = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
-            Write($"Agent running — PID {Environment.ProcessId}.");
+            // Poll for a desktop-app stop request every ~2s; log a heartbeat
+            // about every 30s.
+            if (CheckStopRequest())
+                return; // service is shutting itself down
+
+            if (ticks % 15 == 0)
+                Write($"Agent running — PID {Environment.ProcessId}.");
+            ticks++;
+
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
             }
             catch (TaskCanceledException)
             {
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// If the desktop app requested a stop, lift the stop protection (so SCM can
+    /// stop us) and trigger a clean shutdown. Returns true if a stop was started.
+    /// </summary>
+    private bool CheckStopRequest()
+    {
+        try
+        {
+            if (!File.Exists(StopRequestFile))
+                return false;
+
+            Write("Stop requested by the desktop app (master password verified there).");
+            File.Delete(StopRequestFile);
+
+            // We run as SYSTEM, so we can lift our own SERVICE_STOP deny ACE.
+            if (OperatingSystem.IsWindows())
+                ServiceProtection.AllowStop("MyAppAgent");
+
+            // Ask the host to stop; StopAsync then runs and the process exits
+            // cleanly. A clean stop does NOT trigger SCM recovery.
+            _lifetime.StopApplication();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Write("Failed to handle stop request: " + ex.Message);
+            return false;
         }
     }
 

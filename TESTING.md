@@ -98,6 +98,30 @@ sc query MyAppAgent
 
 ---
 
+## 4b. UYGULAMADAN DURDURMA / BAŞLATMA — master parola
+
+Başlat menüsünden **MyApp**'i aç.
+
+1. **"Stop service"** butonuna bas.
+- [ ] Master parola soran bir pencere çıkıyor.
+2. **Yanlış** parola gir.
+- [ ] "Wrong password." uyarısı çıkıyor; service çalışmaya devam ediyor
+      (`sc query MyAppAgent` → RUNNING).
+3. Tekrar "Stop service" → `Admin123!` gir.
+- [ ] "Service stopped." mesajı çıkıyor; `sc query MyAppAgent` → STOPPED.
+- [ ] Service KENDİLİĞİNDEN geri gelmiyor (temiz durdurma recovery tetiklemez).
+- [ ] `agent.log`'ta `Stop requested by the desktop app ...` satırı var.
+- [ ] `C:\ProgramData\MyApp\stop.request` dosyası işlendikten sonra silinmiş.
+4. **"Start service"** butonuna bas.
+- [ ] Parola SORULMUYOR; "Service started." çıkıyor; `sc query MyAppAgent` → RUNNING.
+- [ ] Service yeniden korumalı: services.msc'den durdurmayı dene → Erişim reddedildi
+      (Bölüm 3b yeniden geçerli).
+
+> Neden start parola istemiyor? STOP reddi (SDDL `WP`) yalnızca durdurmayı engeller;
+> START (`RP`) Interactive kullanıcıya açıktır.
+
+---
+
 ## 5. KALDIRMA — Yanlış parola kaldırmayı engeller
 
 Denetim Masası üzerinden:

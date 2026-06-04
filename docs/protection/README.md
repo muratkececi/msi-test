@@ -10,7 +10,8 @@ uygula; her dosya tek bir yetenek ekler.
 | 1 | [01-uninstall-password.md](01-uninstall-password.md) | Kaldırma sırasında master parola soran koruma |
 | 2 | [02-taskmanager-protection.md](02-taskmanager-protection.md) | Task Manager "End task" ile öldürmeyi engelleme (process DACL) |
 | 3 | [03-services-stop-protection.md](03-services-stop-protection.md) | services.msc / `sc stop` ile durdurmayı engelleme (service SDDL) |
-| 4 | [04-progress-text-cleanup.md](04-progress-text-cleanup.md) | Kurulumdaki ham `[1] [2]` metnini temizleme *(önce doğrula)* |
+| 4 | [04-progress-text-cleanup.md](04-progress-text-cleanup.md) | Kurulumdaki ham `[1] [2] [9] [6]` metnini temizleme (InstallFiles vb.) |
+| 5 | [05-desktop-stop-start.md](05-desktop-stop-start.md) | Masaüstü uygulamasından servisi durdurma (master parola) / başlatma |
 
 ## Nasıl kullanılır
 
