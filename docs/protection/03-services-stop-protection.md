@@ -13,9 +13,13 @@ Bu projedeki arka plan service'ine, Interactive kullanıcıların services.msc /
 sc stop ile DURDURMASINI engelleyen bir koruma eklemeni istiyorum. (Task Manager
 koruması ayrı; bu services.msc tarafı için.)
 
-ÖNCE KEŞFET:
-- Background service ve onu kuran MSI mevcut mu (Adım 2 yapılmış olmalı). Service'in
-  adını ve exe yolunu çıkar.
+ÖNCE KEŞFET (varsayım yapma — repo'yu tara, sonra uygula):
+- Background service ve onu kuran installer mevcut mu (Adım 2 yapılmış olmalı).
+  Service'in adını ve exe yolunu çıkar.
+- Installer WiX mi? DEĞİLSE, "uninstall sırasında --unprotect çağıran custom action"
+  kısmını oraya nasıl uyarlayacağını (kaldırma scriptine bir pre-stop adımı) bana
+  özetle, ONAY AL. Service-SDDL koruması (kod tarafı) installer'dan bağımsızdır.
+- Installer'ın bitness'ini çıkar (CA binary adları x64/x86'ya göre değişir).
 
 EKLE — SERVICE SDDL KORUMASI:
 - Service başlarken (SYSTEM altında), kendi SERVICE güvenlik tanımlayıcısına,

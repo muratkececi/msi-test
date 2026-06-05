@@ -9,12 +9,20 @@ engeller. Bir background Windows service gerektirir; yoksa bu adım onu da ekler
 Bu projeye, arka plan service'inin Task Manager "End task" ile öldürülmesini
 engelleyen bir koruma eklemeni istiyorum.
 
-ÖNCE KEŞFET (varsayım yapma):
+ÖNCE KEŞFET (varsayım yapma — repo'yu tara, sonra uygula):
+- Installer WiX mi (.wixproj / *.wxs)? DEĞİLSE, SCM recovery ve MSI service kurulumu
+  adımları aynen geçmez; bana installer tipini söyle, service kurulumu/recovery'yi
+  oraya nasıl uyarlayacağını özetleyip ONAY AL. Process DACL koruması (kod tarafı)
+  installer'dan bağımsız çalışır.
+- Installer'ın bitness'ini çıkar (x64 → ProgramFiles64Folder, Wix4...._X64; x86 →
+  _X86). Aşağıdaki örnek adlar x64 içindir; x86 ise düzelt.
 - Projede zaten bir Windows service / arka plan süreci var mı? Varsa onu kullan;
   yoksa LocalSystem altında çalışan, otomatik başlayan bir Worker service ekle.
 - Service projesinin TFM'ini kontrol et. DÜZ `net9.0` olmalı, `net9.0-windows` DEĞİL:
   -windows TFM'i Microsoft.WindowsDesktop.App bağımlılığı ekler ve Desktop runtime
-  yoksa service SCM başlangıcında managed kod çalışmadan çöker.
+  yoksa service SCM başlangıcında managed kod çalışmadan çöker. DİKKAT: mevcut bir
+  service'i kullanıyorsan ve TFM'i `-windows` ise, düz `net9.0`'a çevirmek WPF/WinForms
+  referanslarını KIRABİLİR — önce o bağımlılıkları kontrol et, kıracaksa bana bildir.
 
 EKLE — PROCESS DACL KORUMASI:
 - Service başlarken kendi PROCESS DACL'ine, Interactive grup (S-1-5-4) için

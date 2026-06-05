@@ -43,7 +43,8 @@ tablosunu dökerek doğrula.)
 ```text
 Kurulum/kaldırma sırasında ilerleme çubuğunda görünen ham "[1]", "File: [1],
 Directory: [9], Size: [6]" gibi yer-tutucu metinleri temizlemeni istiyorum
-(kozmetik). WiX MSI varsayıyorum.
+(kozmetik). Bu adım YALNIZCA WiX/MSI'a özeldir — installer WiX değilse (MSIX, Inno,
+vb.) bu sorun ve çözüm geçerli değildir; o durumda bunu bana söyle ve bu adımı ATLA.
 
 ÖNCE TEŞHİS ET (tahmin etme — MSI'ın İÇİNE bak):
 - MSI'ı derle. macOS'ta: `brew install msitools`. Sonra:

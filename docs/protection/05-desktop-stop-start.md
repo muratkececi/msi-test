@@ -15,8 +15,15 @@ parola ister) ve **başlatan** (parola istemez) bir özellik ekler.
 Masaüstü uygulamama, korumalı arka plan service'ini durduran ve başlatan bir
 özellik eklemeni istiyorum.
 
-ÖNCE KEŞFET:
-- Masaüstü uygulamasının tipi (WPF/WinForms) ve service'in adı/exe yolu.
+ÖNCE KEŞFET (varsayım yapma — repo'yu tara, sonra uygula):
+- Masaüstü uygulamasının tipi (WPF/WinForms) ve service'in adı/exe yolu. Masaüstü
+  uygulaması YOKSA (ör. yalnız service'li bir ürün) bu adım uygulanamaz — bunu bana
+  söyle.
+- App ile service'in PAYLAŞTIĞI ProgramData yolunu belirle (ör. C:\ProgramData\<App>).
+  İkisi AYNI yolu kullanmalı (IPC kontrol dosyası için); mevcut projede farklı bir
+  ortak konum/Id varsa onu kullan.
+- Uninstall parola hash'i (Adım 1) bu projede zaten var mı? Stop doğrulaması ONUNLA
+  AYNI hash'i kullanmalı — ayrı bir sabit ÜRETME, mevcut olanı paylaş.
 - Service Interactive kullanıcılara SERVICE_STOP reddi uyguluyor mu (Adım 3)? Evetse
   aşağıdaki "kendi kendine durdurma" yaklaşımı ŞART; aksi halde uygulama sc stop
   yapamaz.

@@ -8,10 +8,16 @@ katman ekler. WiX MSI varsayar.
 ```text
 Bu projenin MSI'ına bir KALDIRMA PAROLASI koruması eklemeni istiyorum.
 
-ÖNCE KEŞFET (varsayım yapma):
-- Installer WiX mi (.wixproj / *.wxs / WixToolset.Sdk)? Değilse, nasıl uyarlanacağını
-  bana özetle, kod yazmadan önce onay al.
-- Mevcut WiX sürümünü, hedef TFM'leri ve klasör düzenini çıkar.
+ÖNCE KEŞFET (varsayım yapma — repo'yu tara, sonra uygula):
+- Installer WiX mi (.wixproj / *.wxs / WixToolset.Sdk)? DEĞİLSE (MSIX, Inno Setup,
+  Squirrel, ClickOnce, NSIS, ya da hiç installer yok), bu prompt OLDUĞU GİBİ
+  uygulanamaz: bana mevcut installer tipini ve bu korumanın oraya nasıl uyarlanacağını
+  (veya uyarlanamıyorsa nedenini) özetle, kod yazmadan ONAY AL.
+- Mevcut WiX sürümünü, installer'ın bitness'ini (x64/x86 → klasör ve CA binary adları
+  değişir), hedef TFM'leri ve klasör düzenini çıkar.
+- Bu projede zaten bir parola/lisans hash'i sabiti var mı diye ara. Varsa, Adım 5
+  (uygulamadan durdurma) ile AYNI hash kullanılmalı — uninstall ve app-stop parolaları
+  ayrışmasın. Yoksa yeni bir SHA-256 üret ve nerede tanımlandığını bana bildir.
 
 EKLE:
 - Uninstall sırasında master parola soran bir WiX DTF managed custom action ekle.

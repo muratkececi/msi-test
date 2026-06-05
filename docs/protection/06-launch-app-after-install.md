@@ -13,7 +13,16 @@ WiX MSI + WixUI varsayar.
 
 ```text
 Kurulum tamamlanınca (sihirbazın son sayfasında) uygulamayı otomatik başlatma
-seçeneği eklemeni istiyorum. WiX MSI + WixUI kullanıyorum.
+seçeneği eklemeni istiyorum.
+
+ÖNCE KEŞFET (varsayım yapma):
+- Installer WiX MSI mi VE bir WixUI dialog seti (ör. WixUI_InstallDir) kullanıyor mu?
+  ExitDialog/WIXUI_EXITDIALOGOPTIONALCHECKBOX yaklaşımı buna bağlı. WiX değilse veya
+  WixUI yoksa (UI'sız/özel UI), bana söyle — başlatmayı oraya nasıl bağlayacağını
+  özetleyip ONAY AL.
+- Installer'ın bitness'ini çıkar: aşağıdaki Wix4UtilCA_X64 x64 içindir; x86 ise _X86.
+- Başlatılacak exe'nin gerçek adını ve INSTALLFOLDER Id'sini repo'dan doğrula
+  (<App> ve [INSTALLFOLDER]'ı buna göre değiştir).
 
 EKLE:
 - Son sayfada (ExitDialog) varsayılan İŞARETLİ bir "Launch <App>" onay kutusu:
