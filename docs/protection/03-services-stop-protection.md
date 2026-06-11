@@ -1,74 +1,74 @@
-# Adım 3 — services.msc / `sc stop` ile durdurmayı engelleme (service SDDL)
+# Adim 3 - services.msc / `sc stop` ile durdurmayi engelleme (service SDDL)
 
-Interactive kullanıcı/admin'in service'i `services.msc` veya `sc stop` ile
-durdurmasını engeller. **Adım 2'nin (background service) üzerine** kurulur.
+Interactive kullanici/admin'in service'i `services.msc` veya `sc stop` ile
+durdurmasini engeller. **Adim 2'nin (background service) uzerine** kurulur.
 
-> **Önemli:** Bu adım kaldırmayı bozabilir; bu yüzden uninstall sırasında korumayı
-> kaldıran bir mekanizma da ekleniyor. Bu detay zorunludur, atlama.
+> **Onemli:** Bu adim kaldirmayi bozabilir; bu yuzden uninstall sirasinda korumayi
+> kaldiran bir mekanizma da ekleniyor. Bu detay zorunludur, atlama.
 
 ## Prompt
 
 ```text
-Bu projedeki arka plan service'ine, Interactive kullanıcıların services.msc /
+Bu projedeki arka plan service'ine, Interactive kullanicilarin services.msc /
 sc stop ile DURDURMASINI engelleyen bir koruma eklemeni istiyorum. (Task Manager
-koruması ayrı; bu services.msc tarafı için.)
+korumasi ayri; bu services.msc tarafi icin.)
 
-ÖNCE KEŞFET (varsayım yapma — repo'yu tara, sonra uygula):
-- Background service ve onu kuran installer mevcut mu (Adım 2 yapılmış olmalı).
-  Service'in adını ve exe yolunu çıkar.
-- Installer WiX mi? DEĞİLSE, "uninstall sırasında --unprotect çağıran custom action"
-  kısmını oraya nasıl uyarlayacağını (kaldırma scriptine bir pre-stop adımı) bana
-  özetle, ONAY AL. Service-SDDL koruması (kod tarafı) installer'dan bağımsızdır.
-- Installer'ın bitness'ini çıkar (CA binary adları x64/x86'ya göre değişir).
+ONCE KESFET (varsayim yapma - repo'yu tara, sonra uygula):
+- Background service ve onu kuran installer mevcut mu (Adim 2 yapilmis olmali).
+  Service'in adini ve exe yolunu cikar.
+- Installer WiX mi? DEGILSE, "uninstall sirasinda --unprotect cagiran custom action"
+  kismini oraya nasil uyarlayacagini (kaldirma scriptine bir pre-stop adimi) bana
+  ozetle, ONAY AL. Service-SDDL korumasi (kod tarafi) installer'dan bagimsizdir.
+- Installer'in bitness'ini cikar (CA binary adlari x64/x86'ya gore degisir).
 
-EKLE — SERVICE SDDL KORUMASI:
-- Service başlarken (SYSTEM altında), kendi SERVICE güvenlik tanımlayıcısına,
-  Interactive (IU = S-1-5-4) için SERVICE_STOP (SDDL hak harfi 'WP', 0x0020) iznini
+EKLE - SERVICE SDDL KORUMASI:
+- Service baslarken (SYSTEM altinda), kendi SERVICE guvenlik tanimlayicisina,
+  Interactive (IU = S-1-5-4) icin SERVICE_STOP (SDDL hak harfi 'WP', 0x0020) iznini
   REDDEDEN bir ACE ekle.
-- Yöntem: `sc sdshow <ServiceName>` ile mevcut SDDL'i OKU, deny ACE'yi "(D;;WP;;;IU)"
-  DACL'in (D: bölümünün) EN BAŞINA ekle (deny ACE'ler allow ACE'lerden önce gelmeli),
-  sonra `sc sdset <ServiceName> <yeniSDDL>` ile yaz. Tüm SDDL'i hardcode ETME; canlı
-  descriptor'ı okuyup eklemek SYSTEM/Admin/SCM haklarını korur.
-- Zaten ekliyse tekrar ekleme (idempotent). sc sdset çıktısında "SUCCESS" yoksa hata say.
-- Sonuç: normal/admin kullanıcı services.msc'den "Durdur" diyemez. SYSTEM ve SCM
-  etkilenmez → düzgün durdurma ve recovery çalışmaya devam eder, START engellenmez.
-- Bu kodu yalnızca Windows'ta çalıştır (OperatingSystem.IsWindows()).
+- Yontem: `sc sdshow <ServiceName>` ile mevcut SDDL'i OKU, deny ACE'yi "(D;;WP;;;IU)"
+  DACL'in (D: bolumunun) EN BASINA ekle (deny ACE'ler allow ACE'lerden once gelmeli),
+  sonra `sc sdset <ServiceName> <yeniSDDL>` ile yaz. Tum SDDL'i hardcode ETME; canli
+  descriptor'i okuyup eklemek SYSTEM/Admin/SCM haklarini korur.
+- Zaten ekliyse tekrar ekleme (idempotent). sc sdset ciktisinda "SUCCESS" yoksa hata say.
+- Sonuc: normal/admin kullanici services.msc'den "Durdur" diyemez. SYSTEM ve SCM
+  etkilenmez -> duzgun durdurma ve recovery calismaya devam eder, START engellenmez.
+- Bu kodu yalnizca Windows'ta calistir (OperatingSystem.IsWindows()).
 
-KALDIRMA GÜVENLİĞİ (zorunlu — yoksa uninstall bozulur):
-- Service exe'ye bir "--unprotect" bakım modu ekle: bu argümanla çalıştırıldığında
-  HOST'u başlatmadan SADECE SERVICE_STOP deny ACE'sini kaldırıp çıksın (sc sdshow oku,
-  "(D;;WP;;;IU)" parçasını çıkar, sc sdset ile yaz; best-effort, hata yutulsun).
-- MSI'da KALDIRMA sırasında, StopServices'ten ÖNCE çalışan deferred + Impersonate="no"
-  (SYSTEM) bir custom action ekle: service exe'yi "--unprotect" ile çağırsın,
-  Return="ignore", koşul REMOVE="ALL". Aksi halde STOP reddi MSI'ın service'i
-  durdurmasını da bloklar ve kaldırma takılır.
+KALDIRMA GUVENLIGI (zorunlu - yoksa uninstall bozulur):
+- Service exe'ye bir "--unprotect" bakim modu ekle: bu argumanla calistirildiginda
+  HOST'u baslatmadan SADECE SERVICE_STOP deny ACE'sini kaldirip ciksin (sc sdshow oku,
+  "(D;;WP;;;IU)" parcasini cikar, sc sdset ile yaz; best-effort, hata yutulsun).
+- MSI'da KALDIRMA sirasinda, StopServices'ten ONCE calisan deferred + Impersonate="no"
+  (SYSTEM) bir custom action ekle: service exe'yi "--unprotect" ile cagirsin,
+  Return="ignore", kosul REMOVE="ALL". Aksi halde STOP reddi MSI'in service'i
+  durdurmasini da bloklar ve kaldirma takilir.
 
-README'YE EKLE — korumayı elle kaldırma yolları (yönetici):
-1) MSI'ı kaldır/yeniden kur (otomatik temizlenir / sıfırlanır).
-2) Bakım modu: "<kurulum yolu>\MyApp.Service.exe" --unprotect
-3) Elle: sc sdshow <Name> → çıktıdaki (D;;WP;;;IU)'yu çıkar → sc sdset <Name> "<temiz SDDL>"
+README'YE EKLE - korumayi elle kaldirma yollari (yonetici):
+1) MSI'i kaldir/yeniden kur (otomatik temizlenir / sifirlanir).
+2) Bakim modu: "<kurulum yolu>\MyApp.Service.exe" --unprotect
+3) Elle: sc sdshow <Name> -> ciktidaki (D;;WP;;;IU)'yu cikar -> sc sdset <Name> "<temiz SDDL>"
 
 KURALLAR:
-- Kod yorumları ve commit'ler İngilizce; Conventional Commits; Co-Authored-By EKLEME.
-- Commit/push/tag işlemini ben onaylamadan yapma.
-- WiX macOS'ta derlenmez; CI yeşil olmadan doğrulanmış sayma.
-- DİKKAT: yanlış service SDDL servisi yönetilemez hale getirebilir; SY (SYSTEM) ve
-  BA (Administrators) allow ACE'lerini ASLA kaldırma. Mutlaka test et.
+- Kod yorumlari ve commit'ler Ingilizce; Conventional Commits; Co-Authored-By EKLEME.
+- Commit/push/tag islemini ben onaylamadan yapma.
+- WiX macOS'ta derlenmez; CI yesil olmadan dogrulanmis sayma.
+- DIKKAT: yanlis service SDDL servisi yonetilemez hale getirebilir; SY (SYSTEM) ve
+  BA (Administrators) allow ACE'lerini ASLA kaldirma. Mutlaka test et.
 ```
 
 ## Referans dosyalar (bu projede)
 
-- `MyApp.Service/ServiceProtection.cs` — `DenyInteractiveStop` + `AllowStop` (sc sdshow/sdset)
-- `MyApp.Service/Program.cs` — `--unprotect` bakım modu
-- `MyApp.Service/AgentWorker.cs` — başlangıçta `DenyInteractiveStop` çağrısı
-- `Installer/Package.wxs` — `UnprotectAgentService` CA, StopServices'ten önce sequence
+- `MyApp.Service/ServiceProtection.cs` - `DenyInteractiveStop` + `AllowStop` (sc sdshow/sdset)
+- `MyApp.Service/Program.cs` - `--unprotect` bakim modu
+- `MyApp.Service/AgentWorker.cs` - baslangicta `DenyInteractiveStop` cagrisi
+- `Installer/Package.wxs` - `UnprotectAgentService` CA, StopServices'ten once sequence
 
 ## Neden bu detaylar?
 
 | Detay | Neden |
 | --- | --- |
-| SERVICE_STOP = `WP` | services.msc "Durdur"u engelleyen tam SDDL hakkı budur |
-| Deny ACE'yi başa ekle | SDDL'de deny ACE'ler allow'lardan önce gelmeli |
-| Canlı SDDL'i oku, ekle | SYSTEM/Admin/SCM haklarını silmemek için (hardcode riskli) |
-| `--unprotect` + uninstall CA | STOP reddi, kaldırmadaki StopServices'i de bloklar |
-| SY/BA allow'larına dokunma | Aksi halde service tamamen yönetilemez hale gelir |
+| SERVICE_STOP = `WP` | services.msc "Durdur"u engelleyen tam SDDL hakki budur |
+| Deny ACE'yi basa ekle | SDDL'de deny ACE'ler allow'lardan once gelmeli |
+| Canli SDDL'i oku, ekle | SYSTEM/Admin/SCM haklarini silmemek icin (hardcode riskli) |
+| `--unprotect` + uninstall CA | STOP reddi, kaldirmadaki StopServices'i de bloklar |
+| SY/BA allow'larina dokunma | Aksi halde service tamamen yonetilemez hale gelir |

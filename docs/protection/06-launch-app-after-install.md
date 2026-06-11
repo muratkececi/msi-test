@@ -1,70 +1,70 @@
-# Adım 6 — Kurulum sonrası uygulamayı otomatik başlatma
+# Adim 6 - Kurulum sonrasi uygulamayi otomatik baslatma
 
-Kurulum sihirbazının son sayfasına "Launch <App>" seçeneği (varsayılan işaretli)
-ekler ve kullanıcı "Finish" deyince uygulamayı **kullanıcı bağlamında** başlatır.
+Kurulum sihirbazinin son sayfasina "Launch <App>" secenegi (varsayilan isaretli)
+ekler ve kullanici "Finish" deyince uygulamayi **kullanici baglaminda** baslatir.
 WiX MSI + WixUI varsayar.
 
-> **Püf noktası:** Uygulamayı düz bir exe custom action ile başlatma — o, yükseltilmiş
-> (SYSTEM/elevated) installer bağlamında çalışır ve UI düzgün açılmaz / yetki
-> sorunları çıkar. WixUtil'in `WixShellExec`'ini `Impersonate="yes"` ile kullan;
-> uygulama oturum açmış KULLANICI olarak başlar.
+> **Puf noktasi:** Uygulamayi duz bir exe custom action ile baslatma - o, yukseltilmis
+> (SYSTEM/elevated) installer baglaminda calisir ve UI duzgun acilmaz / yetki
+> sorunlari cikar. WixUtil'in `WixShellExec`'ini `Impersonate="yes"` ile kullan;
+> uygulama oturum acmis KULLANICI olarak baslar.
 
 ## Prompt
 
 ```text
-Kurulum tamamlanınca (sihirbazın son sayfasında) uygulamayı otomatik başlatma
-seçeneği eklemeni istiyorum.
+Kurulum tamamlaninca (sihirbazin son sayfasinda) uygulamayi otomatik baslatma
+secenegi eklemeni istiyorum.
 
-ÖNCE KEŞFET (varsayım yapma):
-- Installer WiX MSI mi VE bir WixUI dialog seti (ör. WixUI_InstallDir) kullanıyor mu?
-  ExitDialog/WIXUI_EXITDIALOGOPTIONALCHECKBOX yaklaşımı buna bağlı. WiX değilse veya
-  WixUI yoksa (UI'sız/özel UI), bana söyle — başlatmayı oraya nasıl bağlayacağını
-  özetleyip ONAY AL.
-- Installer'ın bitness'ini çıkar: aşağıdaki Wix4UtilCA_X64 x64 içindir; x86 ise _X86.
-- Başlatılacak exe'nin gerçek adını ve INSTALLFOLDER Id'sini repo'dan doğrula
-  (<App> ve [INSTALLFOLDER]'ı buna göre değiştir).
+ONCE KESFET (varsayim yapma):
+- Installer WiX MSI mi VE bir WixUI dialog seti (or. WixUI_InstallDir) kullaniyor mu?
+  ExitDialog/WIXUI_EXITDIALOGOPTIONALCHECKBOX yaklasimi buna bagli. WiX degilse veya
+  WixUI yoksa (UI'siz/ozel UI), bana soyle - baslatmayi oraya nasil baglayacagini
+  ozetleyip ONAY AL.
+- Installer'in bitness'ini cikar: asagidaki Wix4UtilCA_X64 x64 icindir; x86 ise _X86.
+- Baslatilacak exe'nin gercek adini ve INSTALLFOLDER Id'sini repo'dan dogrula
+  (<App> ve [INSTALLFOLDER]'i buna gore degistir).
 
 EKLE:
-- Son sayfada (ExitDialog) varsayılan İŞARETLİ bir "Launch <App>" onay kutusu:
+- Son sayfada (ExitDialog) varsayilan ISARETLI bir "Launch <App>" onay kutusu:
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch <App>" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
-- Uygulamayı KULLANICI bağlamında başlatan bir custom action (WixUtil WixShellExec):
+- Uygulamayi KULLANICI baglaminda baslatan bir custom action (WixUtil WixShellExec):
     <Property Id="WixShellExecTarget" Value="[INSTALLFOLDER]<App>.exe" />
     <CustomAction Id="LaunchApplication" BinaryRef="Wix4UtilCA_X64"
                   DllEntry="WixShellExec" Impersonate="yes"
                   Execute="immediate" Return="ignore" />
-- "Finish" butonuna, kutu işaretliyse ve YENİ kurulumsa çalışacak şekilde bağla:
+- "Finish" butonuna, kutu isaretliyse ve YENI kurulumsa calisacak sekilde bagla:
     <UI>
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction"
                Value="LaunchApplication"
                Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
     </UI>
 
-DİKKAT:
-- WixShellExecTarget'ı [#FileId] ile değil [INSTALLFOLDER]<App>.exe yolu ile ver —
+DIKKAT:
+- WixShellExecTarget'i [#FileId] ile degil [INSTALLFOLDER]<App>.exe yolu ile ver -
   dosyalar <Files> ile harvest edildiyse elle bir File Id yoktur.
-- Impersonate="yes" ŞART: aksi halde uygulama SYSTEM olarak açılır (UI sorunları,
-  ServiceController gibi kullanıcı-bağlamı işleri patlar).
-- WixUtil binary adı bitness'e bağlı: x64 build'de Wix4UtilCA_X64. Build çıktısından
-  doğrula; util:ServiceConfig vb. zaten kullanıyorsan referans mevcuttur.
-- Sadece NOT Installed (yeni kurulum) koşuluyla; onarım/kaldırmada başlatma.
+- Impersonate="yes" SART: aksi halde uygulama SYSTEM olarak acilir (UI sorunlari,
+  ServiceController gibi kullanici-baglami isleri patlar).
+- WixUtil binary adi bitness'e bagli: x64 build'de Wix4UtilCA_X64. Build ciktisindan
+  dogrula; util:ServiceConfig vb. zaten kullaniyorsan referans mevcuttur.
+- Sadece NOT Installed (yeni kurulum) kosuluyla; onarim/kaldirmada baslatma.
 
 KURALLAR:
-- Kod yorumları ve commit'ler İngilizce; Conventional Commits; Co-Authored-By EKLEME.
-- Commit/push/tag işlemini ben onaylamadan yapma.
-- WiX macOS'ta derlenmez; CI yeşil olmadan doğrulanmış sayma.
+- Kod yorumlari ve commit'ler Ingilizce; Conventional Commits; Co-Authored-By EKLEME.
+- Commit/push/tag islemini ben onaylamadan yapma.
+- WiX macOS'ta derlenmez; CI yesil olmadan dogrulanmis sayma.
 ```
 
 ## Referans dosyalar (bu projede)
 
-- `Installer/Package.wxs` — `WixShellExecTarget` property, `LaunchApplication` CA ve
-  ExitDialog `Publish` bağlaması
+- `Installer/Package.wxs` - `WixShellExecTarget` property, `LaunchApplication` CA ve
+  ExitDialog `Publish` baglamasi
 
 ## Neden bu detaylar?
 
 | Detay | Neden |
 | --- | --- |
-| `WixShellExec` + `Impersonate="yes"` | Uygulamayı kullanıcı bağlamında açar; elevated installer bağlamı UI/yetki sorunları çıkarır |
-| `[INSTALLFOLDER]...exe` yolu | `<Files>` harvest'te elle File Id yoktur, `[#Id]` çözülmez |
-| `NOT Installed` koşulu | Yalnızca yeni kurulumda başlat; onarım/kaldırmada değil |
-| Bitness'li binary adı | `Wix4UtilCA_X64` (x64); yanlışsa derleme/çalışma patlar |
+| `WixShellExec` + `Impersonate="yes"` | Uygulamayi kullanici baglaminda acar; elevated installer baglami UI/yetki sorunlari cikarir |
+| `[INSTALLFOLDER]...exe` yolu | `<Files>` harvest'te elle File Id yoktur, `[#Id]` cozulmez |
+| `NOT Installed` kosulu | Yalnizca yeni kurulumda baslat; onarim/kaldirmada degil |
+| Bitness'li binary adi | `Wix4UtilCA_X64` (x64); yanlissa derleme/calisma patlar |

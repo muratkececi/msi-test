@@ -1,89 +1,89 @@
-# Adım 5 — Desktop uygulamasından servisi durdurma/başlatma (master parola ile)
+# Adim 5 - Desktop uygulamasindan servisi durdurma/baslatma (master parola ile)
 
-Masaüstü (WPF) uygulamasına, korumalı arka plan service'ini **durduran** (master
-parola ister) ve **başlatan** (parola istemez) bir özellik ekler.
-**Adım 3'ün (services.msc stop koruması) üzerine** kurulur.
+Masaustu (WPF) uygulamasina, korumali arka plan service'ini **durduran** (master
+parola ister) ve **baslatan** (parola istemez) bir ozellik ekler.
+**Adim 3'un (services.msc stop korumasi) uzerine** kurulur.
 
-> **Püf noktası:** Service, Interactive kullanıcılara `SERVICE_STOP` reddi
-> uyguladığı için (Adım 3), WPF uygulaması doğrudan `sc stop` YAPAMAZ. Bu yüzden
-> durdurma, service'in kendi kendini durdurması yoluyla yapılır. Başlatma ise
-> serbesttir (deny ACE yalnızca STOP'u engeller, START'ı değil).
+> **Puf noktasi:** Service, Interactive kullanicilara `SERVICE_STOP` reddi
+> uyguladigi icin (Adim 3), WPF uygulamasi dogrudan `sc stop` YAPAMAZ. Bu yuzden
+> durdurma, service'in kendi kendini durdurmasi yoluyla yapilir. Baslatma ise
+> serbesttir (deny ACE yalnizca STOP'u engeller, START'i degil).
 
 ## Prompt
 
 ```text
-Masaüstü uygulamama, korumalı arka plan service'ini durduran ve başlatan bir
-özellik eklemeni istiyorum.
+Masaustu uygulamama, korumali arka plan service'ini durduran ve baslatan bir
+ozellik eklemeni istiyorum.
 
-ÖNCE KEŞFET (varsayım yapma — repo'yu tara, sonra uygula):
-- Masaüstü uygulamasının tipi (WPF/WinForms) ve service'in adı/exe yolu. Masaüstü
-  uygulaması YOKSA (ör. yalnız service'li bir ürün) bu adım uygulanamaz — bunu bana
-  söyle.
-- App ile service'in PAYLAŞTIĞI ProgramData yolunu belirle (ör. C:\ProgramData\<App>).
-  İkisi AYNI yolu kullanmalı (IPC kontrol dosyası için); mevcut projede farklı bir
+ONCE KESFET (varsayim yapma - repo'yu tara, sonra uygula):
+- Masaustu uygulamasinin tipi (WPF/WinForms) ve service'in adi/exe yolu. Masaustu
+  uygulamasi YOKSA (or. yalniz service'li bir urun) bu adim uygulanamaz - bunu bana
+  soyle.
+- App ile service'in PAYLASTIGI ProgramData yolunu belirle (or. C:\ProgramData\<App>).
+  Ikisi AYNI yolu kullanmali (IPC kontrol dosyasi icin); mevcut projede farkli bir
   ortak konum/Id varsa onu kullan.
-- Uninstall parola hash'i (Adım 1) bu projede zaten var mı? Stop doğrulaması ONUNLA
-  AYNI hash'i kullanmalı — ayrı bir sabit ÜRETME, mevcut olanı paylaş.
-- Service Interactive kullanıcılara SERVICE_STOP reddi uyguluyor mu (Adım 3)? Evetse
-  aşağıdaki "kendi kendine durdurma" yaklaşımı ŞART; aksi halde uygulama sc stop
+- Uninstall parola hash'i (Adim 1) bu projede zaten var mi? Stop dogrulamasi ONUNLA
+  AYNI hash'i kullanmali - ayri bir sabit URETME, mevcut olani paylas.
+- Service Interactive kullanicilara SERVICE_STOP reddi uyguluyor mu (Adim 3)? Evetse
+  asagidaki "kendi kendine durdurma" yaklasimi SART; aksi halde uygulama sc stop
   yapamaz.
 
 DURDURMA (master parola ister):
-- Uygulamada "Servisi durdur" butonu master parola sorsun. Parolayı, uninstall
-  korumasıyla AYNI SHA-256 hash ile doğrula. Doğrulamayı TEK bir metoda koy
-  (ör. ValidatePassword) — ileride bir API çağrısına geçişi kolaylaştırmak için.
-- Parola doğruysa, uygulama servise "dur" sinyali versin. Service SERVICE_STOP
-  reddi uyguladığı için uygulama doğrudan durduramaz; bunun yerine:
-  - Uygulama, service'in izlediği ortak bir konuma (ör.
-    C:\ProgramData\<App>\stop.request) bir KONTROL DOSYASI yazsın.
-  - Service (SYSTEM altında) bu dosyayı kısa aralıklarla (ör. 2 sn) yoklar; görünce
-    kendi SERVICE_STOP deny ACE'sini kaldırır (Adım 3'teki AllowStop), dosyayı siler
-    ve host'u temiz kapatır (IHostApplicationLifetime.StopApplication).
-  - Temiz kapanış SCM recovery'yi TETİKLEMEZ (Windows bunu hata saymaz), yani
-    service geri gelmez — istenen davranış budur.
-- Uygulama, ServiceController ile servisin Stopped'a düşmesini kısa bir timeout ile
-  beklesin ve sonucu kullanıcıya göstersin.
+- Uygulamada "Servisi durdur" butonu master parola sorsun. Parolayi, uninstall
+  korumasiyla AYNI SHA-256 hash ile dogrula. Dogrulamayi TEK bir metoda koy
+  (or. ValidatePassword) - ileride bir API cagrisina gecisi kolaylastirmak icin.
+- Parola dogruysa, uygulama servise "dur" sinyali versin. Service SERVICE_STOP
+  reddi uyguladigi icin uygulama dogrudan durduramaz; bunun yerine:
+  - Uygulama, service'in izledigi ortak bir konuma (or.
+    C:\ProgramData\<App>\stop.request) bir KONTROL DOSYASI yazsin.
+  - Service (SYSTEM altinda) bu dosyayi kisa araliklarla (or. 2 sn) yoklar; gorunce
+    kendi SERVICE_STOP deny ACE'sini kaldirir (Adim 3'teki AllowStop), dosyayi siler
+    ve host'u temiz kapatir (IHostApplicationLifetime.StopApplication).
+  - Temiz kapanis SCM recovery'yi TETIKLEMEZ (Windows bunu hata saymaz), yani
+    service geri gelmez - istenen davranis budur.
+- Uygulama, ServiceController ile servisin Stopped'a dusmesini kisa bir timeout ile
+  beklesin ve sonucu kullaniciya gostersin.
 
-BAŞLATMA (parola istemez):
-- "Servisi başlat" butonu doğrudan ServiceController.Start() ile başlatsın.
-- ÖNEMLİ: Bir servisin VARSAYILAN DACL'i Interactive kullanıcılara SERVICE_START
-  vermez; bu yüzden normal kullanıcının ServiceController.Start() çağrısı
-  "Cannot open '<service>' service" hatası verir. Çözüm: STOP korumasını eklerken
-  (Adım 3) servis SDDL'ine Interactive için bir ALLOW ACE de ekle:
-  (A;;RPLCRC;;;IU) — RP=SERVICE_START, LC=QUERY_STATUS, RC=READ_CONTROL.
-  Böylece kullanıcı UAC olmadan başlatabilir; WP (STOP) vermediğimiz için durdurma
-  yine engellidir. (Deny ACE'ler DACL'in başında, bu allow ACE allow'lar arasında.)
-- Başlatmadan önce varsa eski stop.request dosyasını sil (yoksa service açılır açılmaz
-  tekrar durur). Service yeniden başladığında STOP korumasını tekrar uygular (Adım 3).
+BASLATMA (parola istemez):
+- "Servisi baslat" butonu dogrudan ServiceController.Start() ile baslatsin.
+- ONEMLI: Bir servisin VARSAYILAN DACL'i Interactive kullanicilara SERVICE_START
+  vermez; bu yuzden normal kullanicinin ServiceController.Start() cagrisi
+  "Cannot open '<service>' service" hatasi verir. Cozum: STOP korumasini eklerken
+  (Adim 3) servis SDDL'ine Interactive icin bir ALLOW ACE de ekle:
+  (A;;RPLCRC;;;IU) - RP=SERVICE_START, LC=QUERY_STATUS, RC=READ_CONTROL.
+  Boylece kullanici UAC olmadan baslatabilir; WP (STOP) vermedigimiz icin durdurma
+  yine engellidir. (Deny ACE'ler DACL'in basinda, bu allow ACE allow'lar arasinda.)
+- Baslatmadan once varsa eski stop.request dosyasini sil (yoksa service acilir acilmaz
+  tekrar durur). Service yeniden basladiginda STOP korumasini tekrar uygular (Adim 3).
 
 NOTLAR:
-- ServiceController, .NET'te ayrı bir pakettedir:
+- ServiceController, .NET'te ayri bir pakettedir:
   <PackageReference Include="System.ServiceProcess.ServiceController" />
-- Parola doğrulama ileride API'ye taşınacak: tek metotta tut, hash'i oradan çıkar.
-- Bu mekanizma UAC/yükseltme gerektirmez; named pipe karmaşıklığına da gerek yoktur.
+- Parola dogrulama ileride API'ye tasinacak: tek metotta tut, hash'i oradan cikar.
+- Bu mekanizma UAC/yukseltme gerektirmez; named pipe karmasikligina da gerek yoktur.
 
 KURALLAR:
-- Kod yorumları ve commit'ler İngilizce; Conventional Commits; Co-Authored-By EKLEME.
-- Commit/push/tag işlemini ben onaylamadan yapma.
-- WiX/WPF macOS'ta derlenmez; CI (windows-latest) yeşil olmadan doğrulanmış sayma.
+- Kod yorumlari ve commit'ler Ingilizce; Conventional Commits; Co-Authored-By EKLEME.
+- Commit/push/tag islemini ben onaylamadan yapma.
+- WiX/WPF macOS'ta derlenmez; CI (windows-latest) yesil olmadan dogrulanmis sayma.
 ```
 
 ## Referans dosyalar (bu projede)
 
-- `MyApp/ServiceControlClient.cs` — parola doğrulama + stop.request yazma + start
-- `MyApp/PasswordPrompt.cs` — WPF parola penceresi
-- `MyApp/MainWindow.xaml(.cs)` — Stop/Start butonları ve durum metni
-- `MyApp.Service/AgentWorker.cs` — `stop.request`'i yoklayan döngü + self-stop
-- `MyApp.Service/ServiceProtection.cs` — `AllowStop` (deny ACE'yi kaldırma)
+- `MyApp/ServiceControlClient.cs` - parola dogrulama + stop.request yazma + start
+- `MyApp/PasswordPrompt.cs` - WPF parola penceresi
+- `MyApp/MainWindow.xaml(.cs)` - Stop/Start butonlari ve durum metni
+- `MyApp.Service/AgentWorker.cs` - `stop.request`'i yoklayan dongu + self-stop
+- `MyApp.Service/ServiceProtection.cs` - `AllowStop` (deny ACE'yi kaldirma)
 
 ## Neden bu detaylar?
 
 | Detay | Neden |
 | --- | --- |
-| Kontrol dosyası ile self-stop | WPF, SERVICE_STOP reddi yüzünden doğrudan durduramaz |
-| Service kendi AllowStop'unu çağırır | Yalnızca SYSTEM olan service kendi SDDL'ini değiştirebilir |
-| Temiz kapanış | SCM recovery'yi tetiklemez → service istenmeden geri gelmez |
+| Kontrol dosyasi ile self-stop | WPF, SERVICE_STOP reddi yuzunden dogrudan durduramaz |
+| Service kendi AllowStop'unu cagirir | Yalnizca SYSTEM olan service kendi SDDL'ini degistirebilir |
+| Temiz kapanis | SCM recovery'yi tetiklemez -> service istenmeden geri gelmez |
 | Start parola istemez | STOP'u (`WP`) reddederiz, START'a (`RP`) izin veririz |
-| START için allow ACE şart | Varsayılan servis DACL'i Interactive'e START vermez → "Cannot open service" |
-| Start'tan önce stop.request sil | Bayat istek dosyası servisi anında tekrar durdurur |
-| Doğrulamayı tek metotta tut | İleride API'ye geçişi tek noktadan yapmak için |
+| START icin allow ACE sart | Varsayilan servis DACL'i Interactive'e START vermez -> "Cannot open service" |
+| Start'tan once stop.request sil | Bayat istek dosyasi servisi aninda tekrar durdurur |
+| Dogrulamayi tek metotta tut | Ileride API'ye gecisi tek noktadan yapmak icin |
