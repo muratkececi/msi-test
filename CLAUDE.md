@@ -25,8 +25,11 @@ A sample WPF app shipped via a WiX 5 MSI, with several protection layers:
      uninstall-time custom action strip that ACE so removal is never blocked.
 3. **App-controlled stop/start** — the WPF app stops the service after a master-password
    check (same hash as uninstall). Since the app can't `sc stop` a protected service, it
-   drops a `stop.request` control file under `ProgramData`; the SYSTEM service polls for
-   it, lifts its own deny ACE, and self-stops (`ServiceControlClient.cs` ↔ `AgentWorker`).
+   writes the password's SHA-256 hash into a `stop.request` control file under
+   `ProgramData`; the SYSTEM service polls for it and **re-verifies the hash against its
+   own copy** before acting (the file's presence alone is not trusted — this closes the
+   bypass where any user could drop a stop.request by hand), then lifts its own deny ACE
+   and self-stops (`ServiceControlClient.cs` ↔ `AgentWorker`).
    Start is not password-gated, but a service's default DACL denies SERVICE_START to
    interactive users, so `ServiceProtection` also adds an allow ACE `(A;;RPLCRC;;;IU)`
    (START/QUERY) — without it `ServiceController.Start()` fails with "Cannot open service".

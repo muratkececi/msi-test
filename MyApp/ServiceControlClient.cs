@@ -38,12 +38,18 @@ internal static class ServiceControlClient
     /// <summary>Validates the master password. Single point to later swap for an API.</summary>
     public static bool ValidatePassword(string password)
     {
+        return string.Equals(HashOf(password), MasterPasswordHash, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>SHA-256 of the password as UPPERCASE hex (same scheme everywhere).</summary>
+    private static string HashOf(string? password)
+    {
         using var sha = SHA256.Create();
         byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(password ?? string.Empty));
         var sb = new StringBuilder(bytes.Length * 2);
         foreach (byte b in bytes)
             sb.Append(b.ToString("X2"));
-        return string.Equals(sb.ToString(), MasterPasswordHash, StringComparison.OrdinalIgnoreCase);
+        return sb.ToString();
     }
 
     /// <summary>True if the service is currently running.</summary>
@@ -63,15 +69,20 @@ internal static class ServiceControlClient
 
     /// <summary>
     /// Requests a stop by writing the control file the SYSTEM service watches for.
-    /// Returns true once the service actually reaches Stopped (waits briefly).
+    /// The verified master-password hash is written into the file so the SERVICE
+    /// can re-verify it before stopping — the file's mere presence is not enough.
+    /// This closes the bypass where any user could drop a stop.request by hand
+    /// without knowing the password. Returns true once the service reaches Stopped.
     /// </summary>
-    public static bool RequestStop(out string? error)
+    public static bool RequestStop(string password, out string? error)
     {
         error = null;
         try
         {
             Directory.CreateDirectory(ControlDir);
-            File.WriteAllText(StopRequestFile, DateTime.Now.ToString("o"));
+            // Write the password hash (not the password) so the service can confirm
+            // the requester knew the secret. Same SHA-256/UPPERCASE scheme as above.
+            File.WriteAllText(StopRequestFile, HashOf(password));
 
             using var sc = new ServiceController(ServiceName);
             // The service self-stops within its poll interval; give it a window.

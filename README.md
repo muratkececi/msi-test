@@ -1,6 +1,6 @@
 # MyApp — Kaldırılması ve Durdurulması Korumalı MSI Örneği
 
-Basit bir WPF uygulaması ve onu kuran bir MSI. İki koruma katmanı vardır:
+Basit bir WPF uygulaması ve onu kuran bir MSI. Dört koruma katmanı vardır:
 
 1. **Kaldırma koruması (uninstall):** Kullanıcı uygulamayı kaldırmak istediğinde
    master parola sorulur; yanlışsa kaldırma iptal edilir.
@@ -11,6 +11,18 @@ Basit bir WPF uygulaması ve onu kuran bir MSI. İki koruma katmanı vardır:
 3. **Uygulamadan kontrollü durdurma:** Masaüstü uygulaması, **master parola**
    (uninstall ile aynı) doğrulayarak servisi düzgünce durdurabilir; ayrıca tekrar
    başlatabilir (başlatma parola istemez).
+4. **Klasör silme koruması:** `C:\Program Files\MyApp` ve `C:\ProgramData\MyApp`
+   klasörleri, oturum açmış kullanıcılar (admin dahil) tarafından silinmeye karşı
+   korunur (Dosya Gezgini "Sil" / `del` / `rmdir` → Erişim reddedildi).
+
+> **Nasıl çalışıyor? (özet)** Arka plan servisimiz Windows'un en yetkili hesabı olan
+> **SYSTEM** ile çalışır. Servis, korumak istediği şeylerin (kendi süreci, servisi,
+> klasörleri) izin listesine *"oturum açmış kullanıcılar bunu yapamaz"* kuralı
+> (ACL/DACL) ekler. Bu kural **normal kullanıcıyı da admin'i de** kapsar; SYSTEM ise
+> kuralın dışında kalır, böylece kendi işini (ör. kaldırma sırasında durdurma)
+> yapmaya devam eder. Engelleme parolayla değil, **Windows'un kendi izin sistemiyle**
+> olur — parola yalnızca uygulamanın kontrol ettiği iki yerde devreye girer:
+> kaldırma ve uygulama içinden durdurma. Sınırlar için aşağıdaki güvenlik notuna bak.
 
 ## Proje yapısı
 
@@ -20,12 +32,13 @@ msi-test/
 │                       servisi durdur/başlat + master parola (ServiceControlClient.cs)
 ├── MyApp.Service/    → Arka plan ajanı / Windows service (.NET 9 Worker)
 │                       process kill koruması (ProcessProtection.cs) +
-│                       services.msc stop koruması (ServiceProtection.cs)
+│                       services.msc stop koruması (ServiceProtection.cs) +
+│                       klasör silme koruması (FolderProtection.cs)
 ├── UninstallGuard/   → Parola soran WiX custom action (.NET Framework 4.7.2)
 └── Installer/        → WiX 5 MSI projesi (her şeyi paketler)
 ```
 
-## İki koruma katmanı
+## Koruma katmanları
 
 ### 1) Kaldırma (uninstall) — master parola
 
@@ -88,9 +101,12 @@ msi-test/
   düzgünce durdurur.
 - Servis `SERVICE_STOP` reddi uyguladığı için uygulama doğrudan `sc stop` yapamaz.
   Bunun yerine `C:\ProgramData\MyApp\stop.request` adlı bir **kontrol dosyası**
-  yazar; SYSTEM altındaki servis bu dosyayı görünce kendi STOP reddini kaldırır,
-  dosyayı siler ve kendini temiz şekilde durdurur. Temiz durdurma SCM recovery'yi
-  tetiklemez, yani servis kendiliğinden geri gelmez.
+  yazar — içine parolanın **SHA-256 hash'ini** koyar. SYSTEM altındaki servis bu
+  dosyayı görünce **hash'i kendi gömülü hash'iyle yeniden doğrular**; eşleşirse kendi
+  STOP reddini kaldırır, dosyayı siler ve kendini temiz şekilde durdurur (eşleşmezse
+  isteği reddedip çalışmaya devam eder). Böylece dosyanın yalnızca varlığına
+  güvenilmez; parolayı bilmeyen biri elle dosya atarak servisi durduramaz. Temiz
+  durdurma SCM recovery'yi tetiklemez, yani servis kendiliğinden geri gelmez.
 - **"Start service"** butonu servisi `ServiceController` ile başlatır ve **parola
   istemez**. Bunun çalışması için servis SDDL'ine Interactive kullanıcılar için bir
   `SERVICE_START` (SDDL `RP`) **izin** ACE'si de eklenir (`(A;;RPLCRC;;;IU)`); aksi
@@ -99,6 +115,22 @@ msi-test/
   Servis yeniden başladığında korumaları tekrar uygular.
 - Parola doğrulaması ileride bir API'ye taşınacak şekilde tek bir metotta tutulur
   (`ValidatePassword`).
+
+### 4) Klasör silme koruması — folder DACL
+
+- Service başlarken (SYSTEM altında), iki klasörün izin listesine **Interactive**
+  kullanıcılar için `DELETE` + `DELETE_CHILD` reddeden bir ACE ekler (`icacls`,
+  `MyApp.Service/FolderProtection.cs`):
+  - `C:\Program Files\MyApp` (uygulama dosyaları) — yol exe konumundan türetilir,
+    hard-code değildir.
+  - `C:\ProgramData\MyApp` (veriler/loglar).
+- Böylece kullanıcı/admin bu klasörleri Dosya Gezgini "Sil" / `del` / `rmdir` ile
+  silmeye çalışınca **Erişim reddedildi** alır. SYSTEM etkilenmez.
+- **Kaldırmayı bozmaz:** ACE yalnızca Interactive kullanıcıyı hedefler; MSI'ın
+  `RemoveFiles` aksiyonu SYSTEM olarak çalıştığı için klasörü silebilir. Ayrıca
+  uninstall'da `--unprotect` bakım modu bu ACE'leri `StopServices`/`RemoveFiles`
+  öncesi **kaldırır** (dosyaları SİLMEDEN). Sonuç: kaldırmada `Program Files`
+  klasörü silinir, `ProgramData` klasörü ve logları **diskte kalır**.
 
 > **Service neden düz `net9.0` hedefler (`net9.0-windows` değil)?**
 > Service yalnızca P/Invoke ile Windows API'leri çağırır (WPF/WinForms kullanmaz).
@@ -181,14 +213,62 @@ Ayrıntılı senaryolar için **[TESTING.md](TESTING.md)**.
 - **Kaldırma koruması** normal kullanıcıyı (Denetim Masası / çift tık /
   `msiexec /x`) durdurur. Sessiz mod (`/qn`) kaldırma, parola sorulamayacağı için
   tasarım gereği **engellenir**.
-- **Durdurma koruması** bir **caydırıcıdır**, kernel düzeyi değildir:
-  - Normal kullanıcının Task Manager'dan öldürmesini engeller.
-  - Kararlı bir **admin** DACL'i geri değiştirip ya da recovery'yi kapatıp yine de
-    sonlandırabilir; dosyaları elle silmek de mümkündür.
+- **Durdurma ve klasör korumaları** birer **caydırıcıdır**, kernel düzeyi değildir:
+  - Normal kullanıcının Task Manager'dan öldürmesini, servisi durdurmasını ve
+    klasörleri silmesini engeller.
+  - Kararlı bir **admin** DACL'i geri değiştirip, recovery'yi kapatıp ya da klasörün
+    sahipliğini (ownership) ele geçirip yine de sonlandırabilir/silebilir.
 - Gerçek, kurcalanamaz koruma yalnızca Microsoft imzalı **PPL** (Protected Process
   Light) veya bir **kernel sürücüsü** ile mümkündür — yüksek karmaşıklık/risk.
 - Üretimde parola doğrulamasını bir sunucu **API**'sine taşıyın ve hassas mantığı
   sunucuda tutun.
+
+### Best practice mi? Değerlendirme
+
+- ✅ **Doğru olan:** ACL ile koruma, parolayı tek metotta toplamak, uninstall'da
+  kilidi otomatik açmak ve sınırları (caydırıcı, mutlak değil) dürüstçe belgelemek —
+  bunlar temiz ve doğru desenlerdir.
+- ⚠️ **Konumlandırma:** Bu mimari bir **"tamper protection" (kurcalama koruması)**
+  örneğidir. AV/EDR ürünleri benzerini yapar ama **kernel sürücüsü + imzalı binary**
+  ile. Yalnızca user-mode ACL ile yapıldığında bu, sektörde *"best-effort deterrent"*
+  sayılır, kesin bir *"güvenlik kontrolü"* değil. Yani teknik meşrudur; yeter ki
+  "mutlak koruma" diye değil, **caydırıcı** diye sunulsun (bu repo öyle yapıyor).
+
+### Least Privilege (en az yetki) açısından
+
+Servis **LocalSystem (SYSTEM)** ile çalışır — makinedeki en yüksek yetki. Least
+Privilege ilkesi açısından bu **en dikkat edilmesi gereken noktadır:**
+
+- **Neden SYSTEM gerekli?** Korumaların 2 ve 4'ü (servis/klasör kilitleri) bir
+  nesneyi **admin'e karşı bile** kilitler. Bir nesneyi sahibine/admin'e karşı
+  kilitlemek, onu değiştiren tarafın admin'in üzerinde olmasını gerektirir — pratikte
+  **SYSTEM** demektir. `LocalService`/`NetworkService` gibi düşük hesaplar bu DACL
+  değişikliklerini yapamaz. Yani korumanın gücü doğrudan SYSTEM'den gelir; yetkiyi
+  düşürürseniz koruma da zayıflar.
+- **Risk:** SYSTEM neredeyse her zaman "fazla yetki"dir. Servis bir açık barındırırsa
+  (ör. `stop.request` dosyasının işlenişi veya ileride eklenecek bir API çağrısı),
+  saldırgan doğrudan **SYSTEM yetkisi** kazanır (privilege escalation). Bu, güvenlik
+  denetimlerinde kırmızı bayraktır.
+- **`stop.request` IPC'si — çift doğrulama (sertleştirildi):** Durdurma parolası
+  hem uygulamada hem **serviste** doğrulanır. Uygulama, parolayı doğruladıktan sonra
+  kontrol dosyasına parolanın **SHA-256 hash'ini** yazar; SYSTEM servisi de bu hash'i
+  kendi gömülü hash'iyle karşılaştırır ve eşleşmezse durdurmayı **reddeder** (`AgentWorker`).
+  Böylece `ProgramData` yazılabilir olsa bile, dosyayı elle oluşturan ama parolayı
+  bilmeyen bir kullanıcı servisi durduramaz — yalnızca dosyanın varlığına güvenmeyiz.
+  (Üretimde hash karşılaştırması yerine bir API çağrısı konabilir; her iki taraf da
+  tek bir doğrulama noktası kullanır.)
+
+### SYSTEM yerine alternatifler
+
+| Yaklaşım | Açıklama | Bu proje için |
+|---|---|---|
+| **Yetkiyi düşürmek** (LocalService vb.) | Servis-DACL ve `Program Files` kilitlerini admin'e karşı kuramaz. | ❌ Korumalar 2/4'ü çalışmaz hale getirir. |
+| **SYSTEM'de kal + attack surface'i küçült** | Servis kodunu minimumda tut, `stop.request` IPC'sini sıkılaştır, riskli işleri (ağ/parsing) ayrı düşük-yetkili sürece taşı. | ✅ **Önerilen, gerçekçi best practice.** |
+| **Yetki ayrıştırması (privilege separation)** | Küçük denetlenmiş bir SYSTEM "helper" yalnız ACL kilitler/açar; asıl iş mantığı LocalService ile çalışır. EDR/AV mimarisi. | ➖ İdeal ama bu demo için aşırı. |
+| **Kernel sürücüsü (minifilter / ObCallbacks)** | Mutlak, kurcalanamaz koruma. | ➖ İmzalama/bakım/risk maliyeti çok yüksek; gereksiz. |
+
+**Özet:** SYSTEM'den kaçış bu senaryoda yok; doğru yol "SYSTEM'i hak etmek" —
+yani servisi küçük tutmak ve `stop.request` kanalını güvenli hale getirmek.
 
 ## Üretim için: API ile doğrulama
 

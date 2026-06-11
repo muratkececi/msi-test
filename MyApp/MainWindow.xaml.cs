@@ -34,7 +34,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (ServiceControlClient.RequestStop(out string? error))
+        if (ServiceControlClient.RequestStop(password, out string? error))
             MessageBox.Show(this, "Service stopped.", "MyApp",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         else

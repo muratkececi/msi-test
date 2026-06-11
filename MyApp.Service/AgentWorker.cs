@@ -21,6 +21,15 @@ public class AgentWorker : BackgroundService
     // service to stop itself. Path must match MyApp/ServiceControlClient.cs.
     private static readonly string StopRequestFile = Path.Combine(LogDir, "stop.request");
 
+    // The service re-verifies the master password itself: the desktop app writes
+    // the password's SHA-256 (UPPERCASE hex) into the control file, and we compare
+    // it to this hash before stopping. The file's mere presence is NOT enough —
+    // this prevents an unprivileged user from triggering a stop by dropping a
+    // stop.request by hand. Same demo password ("Admin123!") as UninstallGuard;
+    // change it (and the app's copy) in production, or move validation to an API.
+    private const string MasterPasswordHash =
+        "3EB3FE66B31E3B4D10FA70B5CAD49C7112294AF6AE4E476A1C405155D45AA121";
+
     // The install folder (e.g. C:\Program Files\MyApp). The service runs from the
     // "Agent" subfolder, so the install root is the parent of BaseDirectory.
     // Derived at runtime (not hard-coded) so a custom install path still works.
@@ -122,8 +131,18 @@ public class AgentWorker : BackgroundService
             if (!File.Exists(StopRequestFile))
                 return false;
 
-            Write("Stop requested by the desktop app (master password verified there).");
-            File.Delete(StopRequestFile);
+            // Re-verify the password hash the app wrote. Never act on the file's
+            // presence alone — that would let any user stop the service by hand.
+            string content = File.ReadAllText(StopRequestFile).Trim();
+            File.Delete(StopRequestFile); // consume the request regardless of validity
+
+            if (!string.Equals(content, MasterPasswordHash, StringComparison.OrdinalIgnoreCase))
+            {
+                Write("Stop request rejected: invalid or missing password hash.");
+                return false; // keep running, protection stays in place
+            }
+
+            Write("Stop requested by the desktop app (master password re-verified by the service).");
 
             // We run as SYSTEM, so we can lift our own SERVICE_STOP deny ACE.
             if (OperatingSystem.IsWindows())

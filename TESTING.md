@@ -130,8 +130,30 @@ Başlat menüsünden **MyApp**'i aç.
 3. Tekrar "Stop service" → `Admin123!` gir.
 - [ ] "Service stopped." mesajı çıkıyor; `sc query MyAppAgent` → STOPPED.
 - [ ] Service KENDİLİĞİNDEN geri gelmiyor (temiz durdurma recovery tetiklemez).
-- [ ] `agent.log`'ta `Stop requested by the desktop app ...` satırı var.
+- [ ] `agent.log`'ta `Stop requested by the desktop app (master password re-verified
+      by the service).` satırı var.
 - [ ] `C:\ProgramData\MyApp\stop.request` dosyası işlendikten sonra silinmiş.
+
+### 4b-bis. Parolasız elle stop.request reddediliyor (bypass kontrolü)
+
+Service tekrar çalışırken (gerekirse "Start service"), uygulamayı KULLANMADAN elle
+bir stop isteği dene — service bunu reddetmelidir:
+
+```powershell
+# Yanlış/rastgele içerikle elle stop.request oluştur:
+"sahte" | Out-File -Encoding ascii C:\ProgramData\MyApp\stop.request
+Start-Sleep -Seconds 4
+sc query MyAppAgent
+```
+
+- [ ] Service **RUNNING** kalıyor (durmuyor).
+- [ ] `agent.log`'ta `Stop request rejected: invalid or missing password hash.`
+      satırı var; dosya yine de silinmiş.
+
+> Neden? Service, dosyanın yalnızca varlığına bakmaz; içindeki parola hash'ini
+> kendi gömülü hash'iyle doğrular. Parolayı bilmeyen biri elle dosya atarak servisi
+> durduramaz (least-privilege sertleştirmesi).
+
 4. **"Start service"** butonuna bas.
 - [ ] Parola SORULMUYOR; "Service started." çıkıyor; `sc query MyAppAgent` → RUNNING.
 - [ ] Service yeniden korumalı: services.msc'den durdurmayı dene → Erişim reddedildi

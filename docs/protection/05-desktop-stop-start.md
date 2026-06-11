@@ -35,10 +35,19 @@ DURDURMA (master parola ister):
 - Parola dogruysa, uygulama servise "dur" sinyali versin. Service SERVICE_STOP
   reddi uyguladigi icin uygulama dogrudan durduramaz; bunun yerine:
   - Uygulama, service'in izledigi ortak bir konuma (or.
-    C:\ProgramData\<App>\stop.request) bir KONTROL DOSYASI yazsin.
+    C:\ProgramData\<App>\stop.request) bir KONTROL DOSYASI yazsin. Dosyanin ICINE
+    parolanin SHA-256 HASH'ini yaz (parolanin kendisini DEGIL).
   - Service (SYSTEM altinda) bu dosyayi kisa araliklarla (or. 2 sn) yoklar; gorunce
+    dosyadaki hash'i KENDI gomulu hash'iyle YENIDEN DOGRULAR. Eslesmiyorsa istegi
+    reddedip dosyayi silsin ve calismaya DEVAM etsin (koruma kalkmaz). Eslesiyorsa
     kendi SERVICE_STOP deny ACE'sini kaldirir (Adim 3'teki AllowStop), dosyayi siler
     ve host'u temiz kapatir (IHostApplicationLifetime.StopApplication).
+  - ONEMLI (guvenlik): Dosyanin yalnizca VARLIGINA guvenme. ProgramData varsayilan
+    olarak kullanicilarin yazabildigi bir yerdir; parola SADECE uygulamada
+    dogrulanir ve service yalniz dosya varligina bakarsa, parolayi bilmeyen bir
+    kullanici elle stop.request atarak servisi durdurabilir (privilege-escalation
+    bypass). Bu yuzden hash service tarafinda da dogrulanir. Hash gizli degildir ama
+    dosyayi yazabilmek + dogru hash'i koyabilmek parolayi bilmeyi gerektirir.
   - Temiz kapanis SCM recovery'yi TETIKLEMEZ (Windows bunu hata saymaz), yani
     service geri gelmez - istenen davranis budur.
 - Uygulama, ServiceController ile servisin Stopped'a dusmesini kisa bir timeout ile
@@ -59,8 +68,12 @@ BASLATMA (parola istemez):
 NOTLAR:
 - ServiceController, .NET'te ayri bir pakettedir:
   <PackageReference Include="System.ServiceProcess.ServiceController" />
-- Parola dogrulama ileride API'ye tasinacak: tek metotta tut, hash'i oradan cikar.
+- Parola dogrulama ileride API'ye tasinacak: HEM uygulamada HEM service'te tek
+  metotta tut, hash'i (veya API cagrisini) oradan cikar.
 - Bu mekanizma UAC/yukseltme gerektirmez; named pipe karmasikligina da gerek yoktur.
+- GUVENLIK: hash dogrulamasi service tarafinda SART (yukaridaki bypass notu). Aksi
+  halde SYSTEM service'i parolasiz durdurulabilir hale gelir; least-privilege
+  acisindan bu, en zayif halkadir.
 
 KURALLAR:
 - Kod yorumlari ve commit'ler Ingilizce; Conventional Commits; Co-Authored-By EKLEME.
@@ -70,10 +83,11 @@ KURALLAR:
 
 ## Referans dosyalar (bu projede)
 
-- `MyApp/ServiceControlClient.cs` - parola dogrulama + stop.request yazma + start
+- `MyApp/ServiceControlClient.cs` - parola dogrulama + stop.request'e hash yazma + start
 - `MyApp/PasswordPrompt.cs` - WPF parola penceresi
 - `MyApp/MainWindow.xaml(.cs)` - Stop/Start butonlari ve durum metni
-- `MyApp.Service/AgentWorker.cs` - `stop.request`'i yoklayan dongu + self-stop
+- `MyApp.Service/AgentWorker.cs` - `stop.request`'i yoklayan dongu + service-tarafi
+  hash dogrulamasi + self-stop
 - `MyApp.Service/ServiceProtection.cs` - `AllowStop` (deny ACE'yi kaldirma)
 
 ## Neden bu detaylar?
@@ -81,6 +95,7 @@ KURALLAR:
 | Detay | Neden |
 | --- | --- |
 | Kontrol dosyasi ile self-stop | WPF, SERVICE_STOP reddi yuzunden dogrudan durduramaz |
+| Dosyaya hash yaz + service'te dogrula | Dosya varligi tek basina yeterli degil; parolasiz elle stop.request bypass'ini kapatir |
 | Service kendi AllowStop'unu cagirir | Yalnizca SYSTEM olan service kendi SDDL'ini degistirebilir |
 | Temiz kapanis | SCM recovery'yi tetiklemez -> service istenmeden geri gelmez |
 | Start parola istemez | STOP'u (`WP`) reddederiz, START'a (`RP`) izin veririz |
