@@ -208,6 +208,29 @@ type C:\ProgramData\MyApp\agent.log # heartbeat ve koruma logları
 
 Ayrıntılı senaryolar için **[TESTING.md](TESTING.md)**.
 
+### Gerçek makinede doğrulanmış davranışlar
+
+Aşağıdaki senaryolar Windows üzerinde (v1.2.1 kurulumuyla) elle test edilip
+doğrulanmıştır. Her satır, beklenen sonucu ve onu kanıtlayan gözlemi gösterir.
+
+| Senaryo | Beklenen | Gözlenen kanıt |
+|---|---|---|
+| **Task Manager → End task** (normal kullanıcı) | Erişim reddedildi | Süreç sonlandırılamıyor (process DACL). |
+| **Task Manager → End task** (elevated/admin) | Parola **çıkmaz**; süreç ölür ama ~5 sn'de geri gelir | Parola ekranı yok (kernel `TerminateProcess`, kod çalışmaz); `sc query` ~5 sn sonra tekrar `RUNNING` (SCM recovery). |
+| **services.msc / `sc stop`** | Durdurma yetkisi yok | "Erişim reddedildi" (SERVICE_STOP deny ACE). |
+| **Uygulamadan "Stop service" + doğru parola** | Servis düzgünce durur | `agent.log`: `Stop requested by the desktop app (master password re-verified by the service).`; `sc query` → STOPPED; kendiliğinden geri gelmez. |
+| **Elle sahte `stop.request`** (parolasız bypass denemesi) | Reddedilir; servis çalışmaya devam eder | `agent.log`: `Stop request rejected: invalid or missing password hash.`; hemen ardından aynı PID ile `Agent running …`; `sc query` → hâlâ `RUNNING`; dosya tüketilip silinmiş. |
+| **`C:\Program Files\MyApp` / `C:\ProgramData\MyApp` silme** | Erişim reddedildi | Dosya Gezgini "Sil" / `rmdir` → Access Denied (deny-DELETE ACE). |
+
+> **Parolasız bypass testi nasıl yapılır** (servis çalışırken, yönetici gerekmez):
+> ```powershell
+> "sahte" | Out-File -Encoding ascii C:\ProgramData\MyApp\stop.request
+> Start-Sleep -Seconds 5
+> sc.exe query MyAppAgent                                   # hâlâ RUNNING olmalı
+> Get-Content C:\ProgramData\MyApp\agent.log -Tail 6        # "Stop request rejected ..." satırı
+> ```
+> (PowerShell'de `sc` bazen bir alias'tır; `sc.exe` kullanın. cmd'de düz `sc query` çalışır.)
+
 ## Güvenlik notu (önemli — sınırlar)
 
 - **Kaldırma koruması** normal kullanıcıyı (Denetim Masası / çift tık /
