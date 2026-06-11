@@ -21,6 +21,12 @@ public class AgentWorker : BackgroundService
     // service to stop itself. Path must match MyApp/ServiceControlClient.cs.
     private static readonly string StopRequestFile = Path.Combine(LogDir, "stop.request");
 
+    // The install folder (e.g. C:\Program Files\MyApp). The service runs from the
+    // "Agent" subfolder, so the install root is the parent of BaseDirectory.
+    // Derived at runtime (not hard-coded) so a custom install path still works.
+    private static readonly string? InstallDir =
+        Directory.GetParent(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar))?.FullName;
+
     public AgentWorker(ILogger<AgentWorker> logger, IHostApplicationLifetime lifetime)
     {
         _logger = logger;
@@ -53,6 +59,22 @@ public class AgentWorker : BackgroundService
                 catch (Exception ex)
                 {
                     Write("Service stop protection could not be applied: " + ex.Message);
+                }
+
+                // Block interactive users from deleting the app folders (Explorer
+                // "Delete", del, rmdir). SYSTEM is unaffected, so the MSI can still
+                // remove the install folder during uninstall (and the uninstall CA
+                // strips these ACEs beforehand as a safety net).
+                try
+                {
+                    if (!string.IsNullOrEmpty(InstallDir))
+                        FolderProtection.DenyDelete(InstallDir);
+                    FolderProtection.DenyDelete(LogDir);
+                    Write("Folder deletion protection applied (DELETE denied to interactive users).");
+                }
+                catch (Exception ex)
+                {
+                    Write("Folder deletion protection could not be applied: " + ex.Message);
                 }
             }
         }

@@ -5,7 +5,7 @@
 
   <Package Name="MyApp"
            Manufacturer="iCredible"
-           Version="1.1.2"
+           Version="1.2.0"
            UpgradeCode="6E3B0C2A-9F1D-44A7-9C2E-7A1B2C3D4E5F"
            Codepage="65001"
            Scope="perMachine">
@@ -175,12 +175,14 @@
                   Return="ignore" />
 
     <!-- ============ REMOVE SERVICE-STOP PROTECTION ON UNINSTALL ============ -->
-    <!-- At runtime the service adds a deny ACE for SERVICE_STOP (Interactive) to
-         its own security descriptor, so services.msc / `sc stop` are blocked.
-         During uninstall that ACE would also block MSI's StopServices. Run the
-         service exe in unprotect mode (which only strips the ACE and exits)
-         BEFORE StopServices, as SYSTEM, so the service can then be stopped and
-         removed. Return="ignore" so uninstall never fails because of this. -->
+    <!-- At runtime the service adds two protections: a deny ACE for SERVICE_STOP
+         (Interactive) on its own security descriptor (services.msc / `sc stop`
+         blocked), and a deny-DELETE ACE (Interactive) on the install + data
+         folders (Explorer delete blocked). The stop ACE would also block MSI's
+         StopServices during uninstall. Run the service exe in unprotect mode
+         (which strips BOTH ACE kinds and exits, without deleting any files)
+         BEFORE StopServices, as SYSTEM, so the service can be stopped/removed and
+         the install folder deleted. Return="ignore" so uninstall never fails. -->
     <CustomAction Id="UnprotectAgentService"
                   Directory="AGENTFOLDER"
                   ExeCommand="&quot;[AGENTFOLDER]MyApp.Service.exe&quot; --unprotect"
@@ -290,7 +292,7 @@
 
       <!-- Our own custom actions. -->
       <ProgressText Action="StartAgentService"     Message="Starting background service" Template="Starting background service" />
-      <ProgressText Action="UnprotectAgentService" Message="Preparing background service for removal" Template="Preparing background service for removal" />
+      <ProgressText Action="UnprotectAgentService" Message="Removing protection for uninstall" Template="Removing protection for uninstall" />
       <ProgressText Action="CheckUninstallPassword" Message="Verifying uninstall password" Template="Verifying uninstall password" />
 
       <!-- WixUtil's service-config custom actions (recovery settings). Their

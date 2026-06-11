@@ -13,7 +13,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>MyApp.Service</AssemblyName>
     <OutputType>Exe</OutputType>
-    <Version>1.1.2</Version>
+    <Version>1.2.0</Version>
 
     <!-- Framework-dependent. Hedef makinede .NET 9 (NETCore.App) Runtime
          kuruluysa service çalışır. -->

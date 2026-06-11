@@ -83,6 +83,23 @@ sc query MyAppAgent
 
 ---
 
+## 3c. KLASÖR KORUMASI — Uygulama klasörleri silinemiyor
+
+1. **Dosya Gezgini** > `C:\Program Files\MyApp` > sağ tık > **Sil** (veya yönetici
+   PowerShell'de `rmdir /s "C:\Program Files\MyApp"`).
+- [ ] **"Access is denied / Erişim reddedildi"** alıyorsun; klasör silinmiyor.
+2. Aynısını `C:\ProgramData\MyApp` için dene.
+- [ ] Yine "Erişim reddedildi"; klasör ve içindeki `agent.log` duruyor.
+- [ ] `agent.log`'ta `Folder deletion protection applied (DELETE denied ...).`
+      satırı var.
+
+> Neden? Service başlarken her iki klasöre Interactive kullanıcılar için
+> DELETE/DELETE_CHILD reddeden bir ACE (icacls) ekler. SYSTEM etkilenmez, bu yüzden
+> MSI kaldırma sırasında Program Files'ı yine silebilir.
+> Not: Bu caydırıcıdır; sahipliği (ownership) alan bir admin ACL'i geri alabilir.
+
+---
+
 ## 4. DURDURMA KORUMASI — Öldürülse bile geri geliyor (SCM recovery)
 
 DACL'i baypas edebilen bir admin (örn. `taskkill /F` SYSTEM yetkisiyle) için bile
@@ -142,8 +159,11 @@ Denetim Masası üzerinden:
 ## 6. KALDIRMA — Doğru parola kaldırmaya izin verir
 
 1. Tekrar Kaldır'a bas, parola ekranında `Admin123!` gir → Onayla.
-- [ ] Kaldırma normal şekilde devam ediyor.
+- [ ] Kaldırma normal şekilde devam ediyor (klasör koruması kaldırmayı ENGELLEMEDİ —
+      uninstall, ACE'leri kaldıran `--unprotect` adımını otomatik çalıştırır).
 - [ ] `C:\Program Files\MyApp\` klasörü silinmiş.
+- [ ] `C:\ProgramData\MyApp\` klasörü ve içindeki `agent.log` **DİSKTE KALDI**
+      (MSI veri klasörüne dokunmaz; sadece silme koruması kalkar).
 - [ ] `sc query MyAppAgent` → service artık **yok** (kaldırma sırasında durdurulup silindi).
 - [ ] Başlat menüsü kısayolu kaybolmuş.
 

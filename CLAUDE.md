@@ -14,7 +14,7 @@ Guidance for working in this repository.
 
 ## What this project is
 
-A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
+A sample WPF app shipped via a WiX 5 MSI, with several protection layers:
 
 1. **Uninstall protection** — a master-password prompt blocks unauthorized uninstalls.
 2. **Stop protection** — a Windows service runs as SYSTEM and resists being stopped:
@@ -30,6 +30,14 @@ A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
    Start is not password-gated, but a service's default DACL denies SERVICE_START to
    interactive users, so `ServiceProtection` also adds an allow ACE `(A;;RPLCRC;;;IU)`
    (START/QUERY) — without it `ServiceController.Start()` fails with "Cannot open service".
+4. **Folder-delete protection** — the SYSTEM service adds a deny-DELETE ACE
+   (`DELETE`+`DELETE_CHILD`) for Interactive users on the install folder
+   (`C:\Program Files\MyApp`) and the data folder (`C:\ProgramData\MyApp`) via
+   `icacls` (`FolderProtection.cs`), so Explorer "Delete" / `del` / `rmdir` are
+   denied. SYSTEM is unaffected, so MSI `RemoveFiles` still works; the `--unprotect`
+   maintenance mode and the uninstall custom action strip these ACEs (without
+   deleting any files — the data folder and its logs are left on disk) before
+   `StopServices`/`RemoveFiles`.
 
 > A password CANNOT be prompted on Task Manager "End task" — the kernel calls
 > `TerminateProcess` and no app code runs. Passwords only gate paths the app
@@ -41,7 +49,7 @@ A sample WPF app shipped via a WiX 5 MSI, with two protection layers:
 | Project | TFM | Role |
 |---|---|---|
 | `MyApp/` | `net9.0-windows` | WPF app (framework-dependent); stop/start the service after a password check (`ServiceControlClient.cs`) |
-| `MyApp.Service/` | `net9.0` | Worker service "MyAppAgent"; kill protection (`ProcessProtection.cs`) + stop protection (`ServiceProtection.cs`) |
+| `MyApp.Service/` | `net9.0` | Worker service "MyAppAgent"; kill protection (`ProcessProtection.cs`) + stop protection (`ServiceProtection.cs`) + folder-delete protection (`FolderProtection.cs`) |
 | `UninstallGuard/` | `net472` | WiX DTF managed custom action; password prompt (`CustomActions.cs`) |
 | `Installer/` | WiX 5 (`WixToolset.Sdk/5.0.2`) | MSI that packages everything (`Package.wxs`) |
 
